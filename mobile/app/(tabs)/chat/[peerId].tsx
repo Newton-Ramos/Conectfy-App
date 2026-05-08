@@ -32,9 +32,11 @@ import {
 import { useChatSocketStore } from '@/stores/chat-socket-store';
 
 const BRAND = '#2c9a81';
-const WHATSAPP_BG = '#e5ddd5';
+const CHAT_BG = '#f1f5f9';
 const TICK_GRAY = '#8696a0';
 const TICK_BLUE = '#53bdeb';
+const INK = '#0f172a';
+const MUTED = '#64748b';
 
 const PAGE_SIZE = 40;
 
@@ -93,13 +95,22 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState('');
   const [typingPeer, setTypingPeer] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingMs, setRecordingMs] = useState(0);
+  const [voiceDraft, setVoiceDraft] = useState<{
+    uri: string;
+    durationSec: number;
+  } | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [playingDraft, setPlayingDraft] = useState(false);
 
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const draftSoundRef = useRef<Audio.Sound | null>(null);
+  const recordingTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (params.peerName) setPeerName(params.peerName);
@@ -181,7 +192,9 @@ export default function ChatScreen() {
   useEffect(() => {
     return () => {
       void soundRef.current?.unloadAsync();
+      void draftSoundRef.current?.unloadAsync();
       void recordingRef.current?.stopAndUnloadAsync();
+      if (recordingTickRef.current) clearInterval(recordingTickRef.current);
     };
   }, []);
 
@@ -298,60 +311,22 @@ export default function ChatScreen() {
     }
   };
 
-  const sendVoiceMessage = async () => {
-    const rec = recordingRef.current;
-    recordingRef.current = null;
-    setIsRecording(false);
-    if (!rec || peerId === null || myId === null) return;
-    let uri: string | null = null;
-    let durationSec = 1;
+  const cancelVoiceDraft = useCallback(async () => {
     try {
-      const beforeStop = await rec.getStatusAsync();
-      durationSec = Math.max(
-        1,
-        Math.round((beforeStop.durationMillis ?? 1000) / 1000),
-      );
-      await rec.stopAndUnloadAsync();
-      uri = rec.getURI() ?? null;
+      await draftSoundRef.current?.stopAsync();
+      await draftSoundRef.current?.unloadAsync();
     } catch {
-      Alert.alert('Erro', 'Falha ao finalizar a gravação');
-      return;
+      /* noop */
     }
-    if (!uri) {
-      Alert.alert('Erro', 'Áudio inválido');
-      return;
-    }
-    setSending(true);
-    const content = '🎤 Mensagem de voz';
-    try {
-      const up = await messagesApi.uploadVoice(uri);
-      const mediaUrl = up.data.mediaUrl;
-      let msg: ChatMessage | null = await sendViaSocket(content, {
-        mediaType: 'voice',
-        mediaUrl,
-        mediaDurationSec: durationSec,
-      });
-      if (!msg) {
-        const res = await messagesApi.send(peerId, content, {
-          mediaType: 'voice',
-          mediaUrl,
-          mediaDurationSec: durationSec,
-        });
-        msg = res.data as ChatMessage;
-      }
-      if (msg) setMessages((prev) => mergeUnique(prev, [msg]));
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      Alert.alert('Erro', err.response?.data?.message ?? 'Não foi possível enviar o áudio');
-    } finally {
-      setSending(false);
-    }
-  };
+    draftSoundRef.current = null;
+    setPlayingDraft(false);
+    setVoiceDraft(null);
+  }, []);
 
-  const toggleRecord = async () => {
-    if (isRecording) {
-      await sendVoiceMessage();
+  const startRecording = useCallback(async () => {
+    if (sending || isRecording) return;
+    if (voiceDraft) {
+      // Se já existe prévia, não inicia outra gravação.
       return;
     }
     try {
@@ -368,11 +343,115 @@ export default function ChatScreen() {
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
       recordingRef.current = recording;
+      recordingStartedAtRef.current = Date.now();
+      setRecordingMs(0);
       setIsRecording(true);
+      if (recordingTickRef.current) clearInterval(recordingTickRef.current);
+      recordingTickRef.current = setInterval(() => {
+        const start = recordingStartedAtRef.current;
+        if (!start) return;
+        setRecordingMs(Date.now() - start);
+      }, 120);
     } catch {
       Alert.alert('Erro', 'Não foi possível iniciar a gravação.');
     }
-  };
+  }, [isRecording, sending, voiceDraft]);
+
+  const stopRecordingToDraft = useCallback(async () => {
+    const rec = recordingRef.current;
+    recordingRef.current = null;
+    const start = recordingStartedAtRef.current;
+    recordingStartedAtRef.current = null;
+    if (recordingTickRef.current) clearInterval(recordingTickRef.current);
+    recordingTickRef.current = null;
+    setIsRecording(false);
+
+    if (!rec) return;
+
+    let uri: string | null = null;
+    let durationSec = 0;
+    try {
+      const st = await rec.getStatusAsync();
+      durationSec = Math.max(
+        0,
+        Math.round((st.durationMillis ?? (Date.now() - (start ?? Date.now()))) / 1000),
+      );
+      await rec.stopAndUnloadAsync();
+      uri = rec.getURI() ?? null;
+    } catch {
+      // se falhar, só aborta
+      return;
+    }
+
+    // Evita enviar/gravar "toques" muito curtos
+    if (!uri || durationSec < 1) {
+      setRecordingMs(0);
+      return;
+    }
+
+    setVoiceDraft({ uri, durationSec });
+    setRecordingMs(0);
+  }, []);
+
+  const sendVoiceDraft = useCallback(async () => {
+    if (!voiceDraft || peerId === null || myId === null) return;
+    setSending(true);
+    const content = '🎤 Mensagem de voz';
+    try {
+      const up = await messagesApi.uploadVoice(voiceDraft.uri);
+      const mediaUrl = up.data.mediaUrl;
+      let msg: ChatMessage | null = await sendViaSocket(content, {
+        mediaType: 'voice',
+        mediaUrl,
+        mediaDurationSec: voiceDraft.durationSec,
+      });
+      if (!msg) {
+        const res = await messagesApi.send(peerId, content, {
+          mediaType: 'voice',
+          mediaUrl,
+          mediaDurationSec: voiceDraft.durationSec,
+        });
+        msg = res.data as ChatMessage;
+      }
+      if (msg) setMessages((prev) => mergeUnique(prev, [msg]));
+      await cancelVoiceDraft();
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      Alert.alert('Erro', err.response?.data?.message ?? 'Não foi possível enviar o áudio');
+    } finally {
+      setSending(false);
+    }
+  }, [voiceDraft, peerId, myId, mergeUnique, sendViaSocket, cancelVoiceDraft]);
+
+  const togglePlayDraft = useCallback(async () => {
+    if (!voiceDraft) return;
+    if (playingDraft) {
+      try {
+        await draftSoundRef.current?.stopAsync();
+      } catch {
+        /* noop */
+      }
+      setPlayingDraft(false);
+      return;
+    }
+    try {
+      await draftSoundRef.current?.unloadAsync();
+      const { sound } = await Audio.Sound.createAsync({ uri: voiceDraft.uri });
+      draftSoundRef.current = sound;
+      setPlayingDraft(true);
+      sound.setOnPlaybackStatusUpdate((st) => {
+        if (st.isLoaded && 'didJustFinish' in st && st.didJustFinish) {
+          setPlayingDraft(false);
+          void sound.unloadAsync();
+        }
+      });
+      await sound.playAsync();
+    } catch {
+      Alert.alert('Erro', 'Não foi possível reproduzir o áudio.');
+      setPlayingDraft(false);
+    }
+  }, [voiceDraft, playingDraft]);
 
   const togglePlayVoice = async (msg: ChatMessage) => {
     const src = resolveMediaUrl(msg.mediaUrl);
@@ -715,24 +794,69 @@ export default function ChatScreen() {
               maxLength={4000}
             />
             <TouchableOpacity
-              style={[styles.micBtn, isRecording && styles.micBtnRec]}
-              onPress={() => void toggleRecord()}
-              disabled={sending}>
-              <MaterialIcons name={isRecording ? 'stop' : 'mic'} size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sendBtn, (sending || !draft.trim()) && styles.sendBtnOff]}
-              onPress={() => void send()}
-              disabled={sending || !draft.trim()}>
-              {sending && !isRecording ? (
+              style={[
+                styles.sendBtn,
+                (sending || (!draft.trim() && !voiceDraft)) && styles.sendBtnOff,
+              ]}
+              onPress={() => void (draft.trim() ? send() : sendVoiceDraft())}
+              disabled={sending || (!draft.trim() && !voiceDraft)}>
+              {sending ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <MaterialIcons name="send" size={22} color="#fff" />
               )}
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.micBtn,
+                isRecording && styles.micBtnRec,
+                (sending || !!voiceDraft) && styles.micBtnOff,
+              ]}
+              onPressIn={() => void startRecording()}
+              onPressOut={() => void stopRecordingToDraft()}
+              disabled={sending || !!voiceDraft}>
+              <MaterialIcons name="mic" size={22} color="#fff" />
+            </TouchableOpacity>
           </View>
           {isRecording ? (
-            <Text style={styles.recordingHint}>Gravando… toque no microfone para enviar</Text>
+            <View style={styles.recordingHintRow}>
+              <View style={styles.recordingDot} />
+              <Text style={styles.recordingHintTxt}>
+                Gravando… {Math.floor(recordingMs / 1000).toString().padStart(2, '0')}:
+                {Math.floor((recordingMs % 60000) / 1000)
+                  .toString()
+                  .padStart(2, '0')}
+              </Text>
+              <Text style={styles.recordingHintSub}>Solte para pré-visualizar</Text>
+            </View>
+          ) : null}
+          {voiceDraft ? (
+            <View style={styles.voiceDraftBar}>
+              <TouchableOpacity
+                style={styles.voiceDraftPlay}
+                onPress={() => void togglePlayDraft()}
+                hitSlop={8}>
+                <MaterialIcons
+                  name={playingDraft ? 'pause' : 'play-arrow'}
+                  size={26}
+                  color={BRAND}
+                />
+              </TouchableOpacity>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.voiceDraftTitle} numberOfLines={1}>
+                  Mensagem de voz
+                </Text>
+                <Text style={styles.voiceDraftMeta}>
+                  {voiceDraft.durationSec}s · toque em enviar ou descarte
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.voiceDraftTrash}
+                onPress={() => void cancelVoiceDraft()}
+                hitSlop={8}>
+                <MaterialIcons name="delete-outline" size={22} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
           ) : null}
         </>
       )}
@@ -741,7 +865,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: WHATSAPP_BG },
+  root: { flex: 1, backgroundColor: CHAT_BG },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errText: { fontSize: 16, color: '#333', marginBottom: 12 },
   link: { color: BRAND, fontWeight: '700' },
@@ -753,6 +877,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   topbarCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
@@ -823,10 +952,10 @@ const styles = StyleSheet.create({
   bubbleWrapMine: { alignSelf: 'flex-end' },
   bubbleWrapTheirs: { alignSelf: 'flex-start' },
   bubble: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingTop: 6,
-    paddingBottom: 4,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -837,11 +966,11 @@ const styles = StyleSheet.create({
       android: { elevation: 1 },
     }),
   },
-  bubbleMine: { backgroundColor: '#dcf8c6' },
+  bubbleMine: { backgroundColor: '#d1fae5' },
   bubbleTheirs: { backgroundColor: '#fff' },
-  bubbleText: { fontSize: 16, lineHeight: 20 },
-  bubbleTextMine: { color: '#111' },
-  bubbleTextTheirs: { color: '#111' },
+  bubbleText: { fontSize: 16, lineHeight: 22 },
+  bubbleTextMine: { color: INK },
+  bubbleTextTheirs: { color: INK },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   replyHint: { fontSize: 11, color: '#667781', marginBottom: 4 },
   editedHint: { fontSize: 10, color: '#8696a0', marginTop: 2, fontStyle: 'italic' },
@@ -862,7 +991,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 8,
     paddingTop: 8,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: 'rgba(241,245,249,0.96)',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
     gap: 6,
   },
   input: {
@@ -874,19 +1005,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#111',
+    color: INK,
     marginBottom: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   micBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#54656f',
+    backgroundColor: '#475569',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   micBtnRec: { backgroundColor: '#c62828' },
+  micBtnOff: { opacity: 0.55 },
   sendBtn: {
     width: 44,
     height: 44,
@@ -897,11 +1031,46 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sendBtnOff: { opacity: 0.6 },
-  recordingHint: {
-    textAlign: 'center',
-    color: '#c62828',
-    fontWeight: '600',
-    paddingBottom: 8,
-    backgroundColor: '#f0f2f5',
+  recordingHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    paddingTop: 6,
+    backgroundColor: 'rgba(241,245,249,0.96)',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  recordingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  recordingHintTxt: { color: INK, fontWeight: '800', fontSize: 12 },
+  recordingHintSub: { color: MUTED, fontWeight: '600', fontSize: 12, marginLeft: 'auto' },
+  voiceDraftBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  voiceDraftPlay: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(44,154,129,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceDraftTitle: { color: INK, fontWeight: '800', fontSize: 13 },
+  voiceDraftMeta: { color: MUTED, fontWeight: '600', fontSize: 11, marginTop: 2 },
+  voiceDraftTrash: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

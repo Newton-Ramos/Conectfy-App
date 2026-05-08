@@ -34,6 +34,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       nome: user.nome,
+      role: 'user',
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -43,6 +44,27 @@ export class AuthService {
         email: user.email,
       },
     };
+  }
+
+  /**
+   * Social login genérico (FacebookStrategy injeta `req.user`).
+   * Cria ou vincula conta mínima e devolve JWT do sistema.
+   */
+  async loginSocial(userSocial: {
+    email: string;
+    nome: string;
+    facebookId?: string;
+    googleId?: string;
+    instagramId?: string;
+  }) {
+    const user = await this.usersService.createOrLinkOAuth({
+      email: userSocial.email,
+      nome: userSocial.nome,
+      facebookId: userSocial.facebookId,
+      googleId: userSocial.googleId,
+      instagramId: userSocial.instagramId,
+    });
+    return this.issueJwtPayload(user);
   }
 
   // ================= LOGIN =================

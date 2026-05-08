@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.sub, // id do usuário
       email: payload.email,
       nome: payload.nome,
-      role: payload.role, // 🔥 IMPORTANTE (admin/user)
+      role: payload.role ?? 'user', // 🔥 IMPORTANTE (admin/user)
     };
   }
 }

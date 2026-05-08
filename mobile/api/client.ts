@@ -179,6 +179,16 @@ export const auth = {
       { accessToken },
     ),
 
+  /**
+   * Mobile (Expo): endpoint Passport `POST /auth/facebook`
+   * Body esperado pelo passport-facebook-token: `{ access_token: string }`
+   */
+  facebookToken: (access_token: string) =>
+    api.post<{ access_token: string; user: { id: number; nome: string; email: string } }>(
+      '/auth/facebook',
+      { access_token },
+    ),
+
   oauthInstagramComplete: (code: string, redirectUri: string) =>
     api.post<{ access_token: string; user: { id: number; nome: string; email: string } }>(
       '/auth/oauth/instagram/complete',

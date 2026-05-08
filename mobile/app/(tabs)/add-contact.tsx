@@ -93,7 +93,6 @@ export default function AddContactScreen() {
   const handleSave = async () => {
     if (!runValidation()) return;
 
-    const nomeTrim = nome.trim();
     const telefoneTrim = telefone.trim();
     const emailLower = normalizedEmail;
 

@@ -6,7 +6,10 @@ import {
   UnauthorizedException,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from '../users/dto/login.dto';
 import { CheckEmailDto } from './dto/check-email.dto';
@@ -37,6 +40,17 @@ export class AuthController {
       if (e instanceof UnauthorizedException) throw e;
       throw new UnauthorizedException('Email ou senha inválidos');
     }
+  }
+
+  /**
+   * Mobile (Expo): valida `access_token` via passport-facebook-token.
+   * Envie `access_token` no body (`application/x-www-form-urlencoded` ou JSON).
+   */
+  @Post('facebook')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('facebook'))
+  async facebookLogin(@Req() req: any) {
+    return this.authService.loginSocial(req.user);
   }
 
   /** Remove senha antiga e emite token de redefinição (e-mail em produção). */

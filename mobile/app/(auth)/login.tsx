@@ -20,15 +20,17 @@ import { auth } from '@/api/client';
 import { getApiErrorMessage } from '@/lib/api-error';
 import {
   useGoogleLogin,
-  useFacebookLogin,
   openInstagramLogin,
   isGoogleOAuthConfigured,
 } from '@/lib/social-login';
 import { useAuth } from '@/contexts/auth-context';
+import { useAuth as useSocialAuth } from '@/hooks/useAuth';
 
 const BRAND = '#2c9a81';
 const PRIMARY = '#0a7ea4';
-const BG = '#c4c4c4';
+const BG = '#f1f5f9';
+const INK = '#0f172a';
+const MUTED = '#64748b';
 
 function GoogleOAuthButton(props: {
   width: number;
@@ -96,14 +98,14 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialBusy, setSocialBusy] = useState<string | null>(null);
+  const [remember, setRemember] = useState(false);
   const router = useRouter();
   const { signIn } = useAuth();
+  const { signInWithFacebook, isLoading: fbIsLoading } = useSocialAuth();
 
   const googleConfigured = isGoogleOAuthConfigured();
   const fbConfigured = !!process.env.EXPO_PUBLIC_FACEBOOK_APP_ID;
   const igConfigured = !!process.env.EXPO_PUBLIC_INSTAGRAM_APP_ID;
-
-  const [, fbResponse, fbPromptAsync] = useFacebookLogin();
 
   const persistSession = useCallback(
     async (access_token: string, user: object) => {
@@ -113,24 +115,7 @@ export default function LoginScreen() {
     [router, signIn],
   );
 
-  useEffect(() => {
-    const run = async () => {
-      if (fbResponse?.type !== 'success') return;
-      const at =
-        fbResponse.authentication?.accessToken ?? fbResponse.params?.access_token;
-      if (!at) return;
-      setSocialBusy('facebook');
-      try {
-        const res = await auth.oauthFacebook(at);
-        await persistSession(res.data.access_token, res.data.user);
-      } catch (e: any) {
-        Alert.alert('Facebook', e.response?.data?.message ?? 'Falha no login');
-      } finally {
-        setSocialBusy(null);
-      }
-    };
-    run();
-  }, [fbResponse, persistSession]);
+  // Facebook (Mobile) agora é feito pelo hook `useSocialAuth` → POST /auth/facebook (passport-facebook-token)
 
   const handleLogin = async () => {
     const e = email.trim().toLowerCase();
@@ -213,6 +198,23 @@ export default function LoginScreen() {
               secureTextEntry
               editable={!loading}
             />
+            <View style={styles.rowBetween}>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setRemember((v) => !v)}
+                disabled={loading}>
+                <View style={[styles.checkbox, remember && styles.checkboxOn]}>
+                  {remember ? <View style={styles.checkboxDot} /> : null}
+                </View>
+                <Text style={styles.checkboxLabel}>Manter conectado neste dispositivo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.forgotWrapInline}
+                onPress={() => router.push('/(auth)/forgot-password' as any)}
+                disabled={loading}>
+                <Text style={styles.forgotText}>Esqueci minha senha</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.primaryBtn, loading && styles.disabled]}
               onPress={handleLogin}
@@ -222,11 +224,6 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.primaryBtnText}>Entrar</Text>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.forgotWrap}
-              onPress={() => router.push('/(auth)/forgot-password' as any)}>
-              <Text style={styles.forgotText}>Esqueci minha senha</Text>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
@@ -259,16 +256,16 @@ export default function LoginScreen() {
                 style={[
                   styles.socialBtn,
                   width < 360 && styles.socialBtnFull,
-                  (!fbConfigured || socialBusy) && styles.socialOff,
+                  (!fbConfigured || socialBusy || fbIsLoading) && styles.socialOff,
                 ]}
-                disabled={!fbConfigured || !!socialBusy}
-                onPress={() => fbPromptAsync()}>
-                {socialBusy === 'facebook' ? (
+                disabled={!fbConfigured || !!socialBusy || fbIsLoading}
+                onPress={() => signInWithFacebook()}>
+                {fbIsLoading ? (
                   <ActivityIndicator />
                 ) : (
                   <FontAwesome5 name="facebook-f" size={20} color="#1877F2" />
                 )}
-                <Text style={styles.socialLabel}>Facebook</Text>
+                <Text style={styles.socialLabel}>{fbIsLoading ? 'Conectando...' : 'Facebook'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -299,6 +296,10 @@ export default function LoginScreen() {
               <Text style={styles.hint}>Instagram: defina EXPO_PUBLIC_INSTAGRAM_APP_ID</Text>
             )}
 
+            <Text style={styles.terms}>
+              Ao continuar, você concorda com os Termos e a Política de Privacidade do Conectfy.
+            </Text>
+
             <TouchableOpacity
               style={styles.registerWrap}
               onPress={() =>
@@ -327,6 +328,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     borderBottomLeftRadius: 26,
     borderBottomRightRadius: 26,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   brandRow: {
     flexDirection: 'row',
@@ -348,7 +354,7 @@ const styles = StyleSheet.create({
   logoLetter: { color: '#fff', fontSize: 24, fontWeight: '900' },
   brandText: { color: '#fff', fontSize: 28, fontWeight: '800' },
   heroSubtitle: {
-    color: '#111',
+    color: 'rgba(15, 23, 42, 0.92)',
     fontSize: 15,
     fontWeight: '600',
     opacity: 0.9,
@@ -364,20 +370,21 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 48,
     borderRadius: 12,
     fontSize: 16,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#f8fafc',
     marginBottom: 12,
+    color: INK,
   },
   primaryBtn: {
     backgroundColor: PRIMARY,
@@ -386,19 +393,50 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   disabled: { opacity: 0.55 },
   primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  forgotWrap: { marginTop: 14, alignItems: 'center' },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  forgotWrapInline: { paddingVertical: 6, paddingHorizontal: 6, marginRight: -6 },
   forgotText: { color: PRIMARY, fontWeight: '700', fontSize: 14 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { borderColor: BRAND, backgroundColor: 'rgba(44,154,129,0.14)' },
+  checkboxDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: BRAND,
+  },
+  checkboxLabel: { color: MUTED, fontWeight: '600', fontSize: 12, flexShrink: 1 },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginVertical: 20,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#ddd' },
-  dividerText: { color: '#666', fontSize: 12, fontWeight: '600' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e2e8f0' },
+  dividerText: { color: MUTED, fontSize: 12, fontWeight: '700' },
   socialRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -414,8 +452,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     minHeight: 72,
     borderRadius: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   socialBtnFull: {
     width: '100%',
@@ -424,8 +469,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   socialOff: { opacity: 0.45 },
-  socialLabel: { fontSize: 11, fontWeight: '700', color: '#333' },
-  hint: { fontSize: 10, color: '#888', marginTop: 6, textAlign: 'center' },
+  socialLabel: { fontSize: 11, fontWeight: '800', color: '#334155' },
+  hint: { fontSize: 10, color: MUTED, marginTop: 6, textAlign: 'center' },
+  terms: {
+    marginTop: 14,
+    textAlign: 'center',
+    fontSize: 11,
+    lineHeight: 16,
+    color: MUTED,
+  },
   registerWrap: { marginTop: 22, alignItems: 'center' },
   registerText: { color: PRIMARY, fontWeight: '700', fontSize: 15 },
 });
