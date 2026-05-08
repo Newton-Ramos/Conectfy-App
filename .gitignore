@@ -1,0 +1,16 @@
+# Ignorar pastas de dependências
+node_modules/
+.expo/
+dist/
+build/
+
+# Ignorar o Frontend (conforme solicitado)
+frontend/
+
+# Ignorar arquivos de ambiente (segurança)
+.env
+.env.local
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
