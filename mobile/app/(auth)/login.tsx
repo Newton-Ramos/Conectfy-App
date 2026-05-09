@@ -19,8 +19,11 @@ import { StatusBar } from 'expo-status-bar';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '@/api/client';
 import { getApiErrorMessage } from '@/lib/api-error';
+import { WelcomeNetworkLower } from '@/components/brand/WelcomeNetworkLower';
+import { BrandSparkles } from '@/components/brand/BrandSparkles';
 import {
   useGoogleLogin,
   openInstagramLogin,
@@ -41,6 +44,7 @@ const SOCIAL_IG = '#000000';
 const GOOGLE_BORDER = '#DCDCDC';
 const GOOGLE_TEXT = '#1F1F1F';
 const GOOGLE_G_LOGO = require('../../assets/images/Google__G__logo.png');
+const BRAND_GRADIENT = ['#0F3D3E', '#134e4a', '#1a8a8a'] as const;
 
 function GoogleOAuthButton(props: {
   socialBusy: string | null;
@@ -113,10 +117,7 @@ export default function LoginScreen() {
   const heroHeight = Math.round(height * 0.22);
   const socialBtnHeight = 44;
   const scale = Math.min(1.05, Math.max(0.85, height / 820));
-  const isSmall = height < 700;
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const shouldCenter = viewportHeight > 0 && contentHeight > 0 && viewportHeight > contentHeight;
+  // Sem rolagem: layout cabe na tela.
 
   const logoSize = Math.round(48 * scale);
   const logoRadius = Math.round(logoSize / 2);
@@ -188,48 +189,43 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style="light" backgroundColor={BRAND} />
+    <LinearGradient colors={[...BRAND_GRADIENT]} start={{ x: 0.12, y: 1 }} end={{ x: 0.88, y: 0 }} style={styles.root}>
+      {/* Controlamos o safe-area no header/footer manualmente para o footer encostar no fim. */}
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <StatusBar style="light" backgroundColor="#0F3D3E" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.shell}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            style={styles.scrollOuter}
-            contentContainerStyle={[
-              styles.scroll,
-              shouldCenter && { justifyContent: 'center' },
-              { paddingBottom: insets.bottom + 20 },
-            ]}
-            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-            onContentSizeChange={(_, h) => setContentHeight(h)}
-            showsVerticalScrollIndicator={false}>
-            <View pointerEvents="none" style={styles.topBounceBg} />
+          <View style={styles.page}>
             <View style={styles.grow}>
-              <View
+              <LinearGradient
+                colors={[...BRAND_GRADIENT]}
+                start={{ x: 0.1, y: 1 }}
+                end={{ x: 0.9, y: 0 }}
                 style={[
                   styles.hero,
                   {
                     height: heroHeight,
-                    paddingTop: Math.max(gap, insets.top),
+                    // Evita “faixa” no topo: o inset fica dentro do header gradiente
+                    paddingTop: insets.top + Math.max(10, gap),
                     paddingBottom: gap * 2,
                   },
                 ]}>
-                <View style={styles.brandRow}>
-                  <View
-                    style={[
-                      styles.logoRing,
-                      { width: logoSize, height: logoSize, borderRadius: logoRadius },
-                    ]}>
-                    <Text style={[styles.logoLetter, { fontSize: logoLetterFont }]}>C</Text>
+                <WelcomeNetworkLower opacity={0.14} />
+                <View style={styles.heroInner}>
+                  <View style={[styles.heroEmblemWrap, { width: logoSize, height: logoSize, borderRadius: logoRadius }]}>
+                    <Image
+                      source={require('@/assets/images/Conectfy Logo Grande Fundo Verde Restilizada.jpg')}
+                      style={[styles.heroEmblem, { width: logoSize, height: logoSize }]}
+                      resizeMode="cover"
+                      accessibilityLabel="Conectfy"
+                    />
                   </View>
                   <Text style={[styles.brandText, { fontSize: brandFont }]}>Conectfy</Text>
+                  <Text style={[styles.heroSubtitle, { fontSize: subtitleFont }]}>Entre com e-mail e senha</Text>
                 </View>
-                <Text style={[styles.heroSubtitle, { fontSize: subtitleFont }]}>
-                  Entre com e-mail e senha
-                </Text>
-              </View>
+              </LinearGradient>
 
               <View
                 style={[
@@ -237,8 +233,8 @@ export default function LoginScreen() {
                   {
                     marginHorizontal: gutter,
                     paddingHorizontal: gutter + 4,
-                    paddingTop: gap * 1.4,
-                    paddingBottom: gap * 2.2,
+                    paddingTop: gap * 1.55,
+                    paddingBottom: gap * 2.75,
                   },
                 ]}>
               <View style={[styles.inputWrap, { marginBottom: gap, minHeight: socialBtnHeight }]}>
@@ -417,74 +413,70 @@ export default function LoginScreen() {
             </View>
             </View>
 
-            <View
+            <LinearGradient
+              colors={[...BRAND_GRADIENT]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={[
                 styles.siteFooter,
                 {
-                  paddingBottom: insets.bottom + 20,
-                  marginTop: isSmall ? gap : 'auto',
+                  paddingBottom: Math.max(10, insets.bottom),
                 },
               ]}>
+              <BrandSparkles corners color="rgba(255,255,255,0.6)" />
               <TouchableOpacity
                 onPress={() => router.replace('/(auth)/welcome' as any)}
                 activeOpacity={0.85}
                 style={styles.footerTap}>
-                <Text style={styles.footerBrand}>Conectfy</Text>
+                <Text style={styles.footerBrand}>© Conectfy 2026</Text>
               </TouchableOpacity>
-            </View>
-          </ScrollView>
+            </LinearGradient>
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BRAND },
-  shell: { flex: 1, backgroundColor: BG },
-  scrollOuter: { backgroundColor: BG },
-  scroll: { flexGrow: 1 },
-  grow: { flex: 1 },
-  topBounceBg: {
-    position: 'absolute',
-    top: -1000,
-    left: 0,
-    right: 0,
-    height: 1000,
-    backgroundColor: BRAND,
-  },
+  root: { flex: 1 },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  shell: { flex: 1, backgroundColor: 'transparent' },
+  page: { flex: 1, flexDirection: 'column' },
+  grow: { flex: 1, flexDirection: 'column', minHeight: 0 },
+  
   hero: {
-    backgroundColor: BRAND,
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 32,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    overflow: 'hidden',
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 6,
+  heroInner: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  heroEmblemWrap: {
+    overflow: 'hidden',
+    marginBottom: 10,
+    backgroundColor: 'rgba(15, 61, 62, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  logoRing: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroEmblem: {
+    opacity: 0.78,
+    transform: [{ scale: 1.08 }],
   },
-  logoLetter: { color: '#fff', fontSize: 24, fontWeight: '900' },
-  brandText: { color: '#fff', fontSize: 28, fontWeight: '800' },
+  brandText: { color: '#fff', fontSize: 28, fontWeight: '900' },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 15,
@@ -493,10 +485,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
+    flex: 1,
     maxWidth: 440,
     alignSelf: 'center',
     width: '100%',
-    marginTop: -16,
+    marginTop: -8,
+    marginBottom: 0,
     backgroundColor: '#fff',
     borderRadius: 18,
     borderTopLeftRadius: 30,
@@ -641,24 +635,36 @@ const styles = StyleSheet.create({
   },
   registerWrap: { marginTop: 22, alignItems: 'center' },
   registerText: { color: PRIMARY, fontWeight: '700', fontSize: 15 },
-  siteFooter: {
-    marginTop: 'auto',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: SLATE_200,
-    backgroundColor: BG,
-    paddingTop: 12,
+  registerInline: {
+    marginTop: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  registerInlineText: {
+    color: '#E0E0E0',
+    fontWeight: '700',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  siteFooter: {
+    marginTop: 0,
+    marginHorizontal: 0,
+    height: 80,
+    borderRadius: 0,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   footerTap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 10,
     paddingHorizontal: 14,
   },
   footerBrand: {
     fontSize: 14,
     fontWeight: '600',
-    color: BRAND,
+    color: '#E0E0E0',
   },
 });

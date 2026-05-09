@@ -17,13 +17,14 @@ const BRAND_TEAL_MID = '#1a8a8a';
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
 
   const heroMinHeight = useMemo(() => Math.round(height * 0.62), [height]);
 
   return (
     <LinearGradient colors={[...BRAND_GRADIENT]} style={styles.root}>
       <StatusBar style="light" />
+      <View style={styles.shell}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -79,26 +80,33 @@ export default function WelcomeScreen() {
 
             <Text style={styles.cardLegal}>Acesso seguro e sincronizado em qualquer dispositivo.</Text>
           </View>
-
-          <LinearGradient
-            colors={[...BRAND_GRADIENT]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.footer, { marginBottom: Math.max(12, insets.bottom + 10) }]}>
-            <BrandSparkles corners color="rgba(255,255,255,0.6)" />
-            <View style={styles.footerInner}>
-              <Text style={styles.footerCopyright}>©</Text>
-              <Text style={styles.footerLegal}>Todos os direitos reservados ao Conectfy 2026</Text>
-            </View>
-          </LinearGradient>
         </View>
       </ScrollView>
+
+      <LinearGradient
+        colors={[...BRAND_GRADIENT]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.footer,
+          {
+            paddingBottom: Math.max(10, insets.bottom),
+          },
+        ]}>
+        <BrandSparkles corners color="rgba(255,255,255,0.6)" />
+        <View style={styles.footerInner}>
+          <Text style={styles.footerCopyright}>©</Text>
+          <Text style={styles.footerLegal}>Todos os direitos reservados ao Conectfy 2026</Text>
+        </View>
+      </LinearGradient>
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  shell: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 0 },
   hero: {
@@ -210,13 +218,16 @@ const styles = StyleSheet.create({
   },
   btnOutlineCreateText: { color: BRAND_TEAL_MID, fontWeight: '800', fontSize: 16 },
   footer: {
-    marginTop: 25,
+    marginTop: 0,
+    marginHorizontal: 0,
+    alignSelf: 'stretch',
+    width: '100%',
     height: 80,
-    borderRadius: 20,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     overflow: 'hidden',
+    paddingHorizontal: 16,
   },
   footerInner: {
     zIndex: 2,
