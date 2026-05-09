@@ -3,7 +3,10 @@
  * Na API real, as tags vêm de `user_contacts.tags`; aqui usamos `circle` + `tags` alinhados.
  */
 
-/** Conta dona dos vínculos demo no seed (`SEED_OWNER_EMAIL` no backend; padrão `admin@admin.com`). */
+/**
+ * Conta dona dos vínculos demo no seed (`SEED_OWNER_EMAIL` no backend; padrão `admin@admin.com`).
+ * O mesmo script (`seed-demo-contact-tags.ts`) preenche o perfil demo dessa conta (nome, endereço CEUB/Brasília, círculos, afinidades, notas).
+ */
 export const MOCK_OWNER_EMAIL = 'admin@admin.com' as const;
 
 export type DemoCircleTag =

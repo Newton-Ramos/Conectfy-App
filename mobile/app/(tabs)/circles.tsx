@@ -16,6 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { circlesApi, type CircleSummary } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
 import { circleAccentSolid, circleIconBackdrop } from '@/constants/circles';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
+import type { Href } from 'expo-router';
+
+const EXPLORE_HREF: Href = '/(tabs)/explore';
 
 function iconName(icon: string): React.ComponentProps<typeof MaterialIcons>['name'] {
   const map: Record<string, React.ComponentProps<typeof MaterialIcons>['name']> = {
@@ -30,14 +34,14 @@ function iconName(icon: string): React.ComponentProps<typeof MaterialIcons>['nam
   return map[icon] ?? 'label';
 }
 
-const BRAND = '#2c9a81';
-const BG = '#f8fafc';
+const BRAND = BRAND_ACCENT;
+const BG = APP_SURFACE_BG;
 const INK = '#1e293b';
 const MUTED = '#64748b';
 const BADGE_EMPTY = '#94a3b8';
 
-/** Gradiente do card “Mais populoso”: BRAND → tom mais claro. */
-const FEATURED_GRADIENT = ['#2c9a81', '#52cba8'] as const;
+/** Gradiente do card “Mais populoso” — mesma família do header. */
+const FEATURED_GRADIENT = BRAND_GRADIENT_COLORS;
 const FEATURED_GRADIENT_EMPTY = ['#94a3b8', '#cbd5e1'] as const;
 
 export default function CirclesScreen() {
@@ -95,12 +99,12 @@ export default function CirclesScreen() {
   const goTotalCirculos = () => {
     router.push({
       pathname: '/(tabs)/contacts' as any,
-      params: { groupByCircle: '1' },
+      params: { groupByCircle: '1', backSrc: 'circles' },
     });
   };
 
   const goTotalPessoas = () => {
-    router.push('/(tabs)/contacts' as any);
+    router.push({ pathname: '/(tabs)/contacts' as any, params: { backSrc: 'circles' } });
   };
 
   const goMaisPopuloso = () => {
@@ -108,7 +112,7 @@ export default function CirclesScreen() {
     if (!tag || tag === '-') return;
     router.push({
       pathname: '/(tabs)/contacts' as any,
-      params: { tag },
+      params: { tag, backSrc: 'circles' },
     });
   };
 
@@ -117,8 +121,8 @@ export default function CirclesScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.navigate(EXPLORE_HREF)} hitSlop={12}>
           <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle} numberOfLines={1}>
@@ -127,7 +131,7 @@ export default function CirclesScreen() {
         <TouchableOpacity style={styles.topbarIcon} hitSlop={12}>
           <MaterialIcons name="menu" size={22} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {loading ? (
         <View style={styles.center}>
@@ -201,7 +205,7 @@ export default function CirclesScreen() {
                   onPress={() =>
                     router.push({
                       pathname: '/(tabs)/contacts' as any,
-                      params: { tag: c.key },
+                      params: { tag: c.key, backSrc: 'circles' },
                     })
                   }
                   activeOpacity={0.85}>
@@ -258,7 +262,6 @@ const styles = StyleSheet.create({
   topbar: {
     paddingHorizontal: 12,
     paddingBottom: 14,
-    backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',

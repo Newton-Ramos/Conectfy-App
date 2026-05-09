@@ -14,6 +14,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -27,9 +28,13 @@ import {
   clearPeerLocalPrefs,
   type ArchivedChat,
 } from '@/lib/chat-local-prefs';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 
-const BRAND = '#2c9a81';
-const BG = '#f6f6f6';
+const BRAND = BRAND_ACCENT;
+/** Alinhado ao fundo do chat */
+const BG = APP_SURFACE_BG;
+const CARD = '#fff';
+const SEP = '#e6eded';
 
 function initials(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
@@ -307,7 +312,7 @@ export default function ConversationsScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.headerTitle}>Conversas</Text>
         <TouchableOpacity
           onPress={openPickContacts}
@@ -317,7 +322,7 @@ export default function ConversationsScreen() {
           accessibilityLabel="Nova conversa">
           <MaterialIcons name="edit" size={22} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {prefs.archived.length > 0 ? (
         <TouchableOpacity style={styles.archivedBar} onPress={() => setArchivedOpen(true)} activeOpacity={0.7}>
@@ -350,7 +355,6 @@ export default function ConversationsScreen() {
               </Text>
             </View>
           }
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
         />
       )}
 
@@ -364,7 +368,7 @@ export default function ConversationsScreen() {
             <View style={{ width: 72 }} />
           </View>
           <View style={styles.pickSearch}>
-            <MaterialIcons name="search" size={22} color="#8696a0" />
+            <MaterialIcons name="search" size={22} color={BRAND} />
             <TextInput
               style={styles.pickSearchInput}
               placeholder="Buscar contato"
@@ -441,26 +445,25 @@ export default function ConversationsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   header: {
-    backgroundColor: BRAND,
-    paddingHorizontal: 12,
-    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
     paddingTop: 8,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
       },
-      android: { elevation: 4 },
+      android: { elevation: 6 },
     }),
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', flex: 1 },
+  headerTitle: { fontSize: 23, fontWeight: '800', color: '#fff', letterSpacing: 0.3, flex: 1 },
   headerBtn: {
     padding: 10,
     borderRadius: 999,
@@ -470,13 +473,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 4,
+    backgroundColor: CARD,
+    borderRadius: 14,
     gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e9edef',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: SEP,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  archivedBarText: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111' },
+  archivedBarText: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingBottom: 100 },
   emptyContainer: { flexGrow: 1 },
@@ -486,36 +502,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingTop: 80,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 8 },
-  emptySub: { fontSize: 15, color: '#666', textAlign: 'center', lineHeight: 22 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  emptySub: { fontSize: 15, color: '#556369', textAlign: 'center', lineHeight: 22 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-      },
-      android: { elevation: 2 },
-    }),
+    paddingVertical: 14,
+    backgroundColor: CARD,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SEP,
   },
   rowPressed: { opacity: 0.92 },
   avatar: {
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#c8ebe3',
+    backgroundColor: 'rgba(44,154,129,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(44,154,129,0.35)',
   },
   avatarText: { fontSize: 18, fontWeight: '800', color: BRAND },
   rowBody: { flex: 1, minWidth: 0 },
@@ -528,8 +536,8 @@ const styles = StyleSheet.create({
   },
   rowTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   muteIcon: { marginRight: 2 },
-  peerName: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111' },
-  time: { fontSize: 12, color: '#889096', fontVariant: ['tabular-nums'] },
+  peerName: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827' },
+  time: { fontSize: 12, color: '#667781', fontVariant: ['tabular-nums'], fontWeight: '600' },
   unreadDot: {
     width: 8,
     height: 8,
@@ -539,35 +547,32 @@ const styles = StyleSheet.create({
   },
   rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   previewIcon: { marginRight: 2 },
-  preview: { flex: 1, fontSize: 14, color: '#64748b' },
-  sep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#eef2f6',
-    marginHorizontal: 24,
-  },
+  preview: { flex: 1, fontSize: 14, color: '#54656f', fontWeight: '500' },
   modalRoot: { flex: 1, backgroundColor: BG },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-    backgroundColor: '#fff',
+    borderBottomColor: SEP,
+    backgroundColor: CARD,
   },
-  modalCancel: { fontSize: 17, color: BRAND, width: 72 },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
+  modalCancel: { fontSize: 17, fontWeight: '600', color: BRAND, width: 72 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
   pickSearch: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginVertical: 10,
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    gap: 8,
+    marginVertical: 12,
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#f0f2f5',
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(44,154,129,0.12)',
   },
   pickSearchInput: { flex: 1, fontSize: 16, color: '#111', paddingVertical: 8 },
   pickList: { paddingBottom: 40 },
@@ -575,22 +580,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    backgroundColor: CARD,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e9edef',
-    gap: 12,
+    borderBottomColor: SEP,
+    gap: 14,
   },
   pickAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#c8ebe3',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(44,154,129,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(44,154,129,0.35)',
   },
   pickAvatarTxt: { fontSize: 16, fontWeight: '800', color: BRAND },
-  pickName: { fontSize: 16, fontWeight: '700', color: '#111' },
+  pickName: { fontSize: 16, fontWeight: '700', color: '#111827' },
   pickEmail: { fontSize: 14, color: '#667781', marginTop: 2 },
   pickEmpty: { textAlign: 'center', color: '#8696a0', marginTop: 24, paddingHorizontal: 24 },
   deleteAction: {
@@ -612,12 +619,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   archSheet: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: CARD,
+    borderRadius: 18,
+    padding: 18,
     maxHeight: '70%',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: SEP,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 24,
+      },
+      android: { elevation: 12 },
+    }),
   },
-  archSheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 12, color: '#111' },
+  archSheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 14,
+    color: '#111827',
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SEP,
+  },
   archRow: {
     flexDirection: 'row',
     alignItems: 'center',

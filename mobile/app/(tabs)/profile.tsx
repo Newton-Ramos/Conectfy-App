@@ -9,12 +9,14 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 
 type User = {
   id: number;
@@ -172,9 +174,11 @@ export default function ProfileScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <LinearGradient
+        colors={[...BRAND_GRADIENT_COLORS]}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>{headerTitle}</Text>
-      </View>
+      </LinearGradient>
 
       <View style={styles.body}>
         <View style={styles.profileCard}>
@@ -183,7 +187,7 @@ export default function ProfileScreen() {
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
               ) : (
-                <Text style={styles.avatarLgText}>
+                <Text style={[styles.avatarLgText, { color: BRAND_ACCENT }]}>
                   {(fullName || '?').charAt(0).toUpperCase()}
                 </Text>
               )}
@@ -194,7 +198,7 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
                 onPress={handleAvatarAction}
                 accessibilityLabel={avatarUri ? 'Editar foto' : 'Adicionar foto'}>
-                <MaterialCommunityIcons name="pencil" size={14} color={stylesVars.brand} />
+                <MaterialCommunityIcons name="pencil" size={14} color={BRAND_ACCENT} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -300,7 +304,9 @@ export default function ProfileScreen() {
           <>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push('/(tabs)/edit-person' as any)}>
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/edit-person' as any, params: { from: 'profile' } })
+              }>
               <MaterialCommunityIcons name="pencil-outline" size={18} color="#fff" />
               <Text style={styles.editButtonText}>Editar perfil</Text>
             </TouchableOpacity>
@@ -317,7 +323,7 @@ export default function ProfileScreen() {
             onPress={() =>
               router.push({
                 pathname: '/(tabs)/edit-person' as any,
-                params: { userId: String(targetUserId) },
+                params: { userId: String(targetUserId), from: 'profile' },
               })
             }>
             <MaterialCommunityIcons name="pencil-outline" size={18} color="#fff" />
@@ -330,8 +336,7 @@ export default function ProfileScreen() {
 }
 
 const stylesVars = {
-  brand: '#2c9a81',
-  bg: '#f8fafc',
+  bg: APP_SURFACE_BG,
   ink: '#1e293b',
   muted: '#64748b',
   border: '#e2e8f0',
@@ -339,13 +344,12 @@ const stylesVars = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: stylesVars.bg },
+  container: { flex: 1, backgroundColor: APP_SURFACE_BG },
   scrollContent: { paddingBottom: 40 },
   body: { paddingHorizontal: 16 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
   muted: { color: stylesVars.muted },
   header: {
-    backgroundColor: stylesVars.brand,
     height: 180,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -373,7 +377,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: '100%', height: '100%' },
-  avatarLgText: { color: stylesVars.brand, fontWeight: '900', fontSize: 34 },
+  avatarLgText: { fontWeight: '900', fontSize: 34 },
   avatarEditBtn: {
     position: 'absolute',
     right: -2,
@@ -444,7 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
-    backgroundColor: stylesVars.brand,
+    backgroundColor: BRAND_ACCENT,
   },
   editButtonText: { color: '#fff', fontWeight: '800' },
   logoutButton: {

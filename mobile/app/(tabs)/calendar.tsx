@@ -1,23 +1,27 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { hrefCalendarBack } from '@/lib/detail-screen-back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   loadCalendarEvents,
   saveCalendarEvents,
   type LocalCalendarEvent,
 } from '@/lib/calendar-events';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 
 export type { LocalCalendarEvent };
 
-const BRAND = '#2c9a81';
-const BG = '#f8fafc';
+const BRAND = BRAND_ACCENT;
+const BG = APP_SURFACE_BG;
 const INK = '#1e293b';
 const MUTED = '#64748b';
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ backSrc?: string }>();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<LocalCalendarEvent[]>([]);
 
@@ -32,6 +36,10 @@ export default function CalendarScreen() {
       void refresh();
     }, [refresh]),
   );
+
+  const goBack = () => {
+    router.navigate(hrefCalendarBack(params as Record<string, string | string[] | undefined>));
+  };
 
   const openNew = () => {
     router.push('/(tabs)/event-create' as never);
@@ -67,15 +75,15 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={goBack} hitSlop={12}>
           <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>Calendário</Text>
         <TouchableOpacity style={styles.topbarIcon} onPress={openNew} hitSlop={12}>
           <MaterialIcons name="add" size={26} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={items}
@@ -115,7 +123,6 @@ const styles = StyleSheet.create({
   topbar: {
     paddingHorizontal: 12,
     paddingBottom: 12,
-    backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',

@@ -281,7 +281,12 @@ export default function HomeScreen() {
           <View style={[styles.headerIcons, isWide && styles.headerIconsWide]}>
             <TouchableOpacity
               style={styles.headerIconBtn}
-              onPress={() => router.push('/(tabs)/calendar' as any)}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/calendar' as any,
+                  params: { backSrc: 'home' },
+                })
+              }
               accessibilityLabel="Calendário e datas importantes">
               <MaterialIcons name="event" size={23} color="#fff" />
             </TouchableOpacity>
@@ -347,7 +352,7 @@ export default function HomeScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/(tabs)/contacts' as any,
-                    params: { tag: c.key },
+                    params: { tag: c.key, backSrc: 'home' },
                   })
                 }
                 activeOpacity={0.9}>
@@ -368,7 +373,9 @@ export default function HomeScreen() {
           <View style={[styles.quickRow, isWide && styles.actionRowWide]}>
             <TouchableOpacity
               style={styles.quickCard}
-              onPress={() => router.push('/(tabs)/contacts' as any)}
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/contacts' as any, params: { backSrc: 'home' } })
+              }
               activeOpacity={0.88}>
               <MaterialIcons name="format-list-bulleted" size={22} color={BRAND_TEAL_DEEP} />
               <Text style={styles.quickCardTitle}>Gerenciar Lista</Text>
@@ -376,7 +383,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickCardPrimary}
-              onPress={() => router.push('/(tabs)/add-contact' as any)}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/add-contact' as any,
+                  params: { from: 'home' },
+                })
+              }
               activeOpacity={0.9}>
               <MaterialIcons name="person-add-alt-1" size={22} color="#fff" />
               <Text style={styles.quickCardPrimaryTitle}>Adicionar Rápido</Text>

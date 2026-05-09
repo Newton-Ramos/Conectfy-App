@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 /** Tempo mínimo da splash JS alinhado ao gate em `app/_layout.tsx`. */
-export const SPLASH_MIN_MS = 2800;
+export const SPLASH_MIN_MS = 4000;
 
 export const APP_VERSION =
   Constants.expoConfig?.version ?? (Constants.nativeAppVersion as string | undefined) ?? '1.0.0';

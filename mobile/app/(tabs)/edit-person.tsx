@@ -8,9 +8,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { hrefAfterEditPerson } from '@/lib/detail-screen-back';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 import { usersApi, getUserById, type ContactUser } from '@/api/client';
 import {
   maskPhoneBr,
@@ -32,11 +37,10 @@ import {
   validateNascimentoOpcional,
 } from '@/lib/profile-masks';
 
-const CHIP_GREEN = '#2c9a81';
-
 export default function EditPersonScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userId?: string }>();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ userId?: string; from?: string; peerName?: string }>();
   const targetId = useMemo(() => {
     const n = params.userId ? Number(params.userId) : NaN;
     return Number.isFinite(n) ? n : null;
@@ -65,6 +69,10 @@ export default function EditPersonScreen() {
   const [emailOther, setEmailOther] = useState('');
 
   const isSelf = targetId === null || (myId !== null && targetId === myId);
+
+  const leaveScreen = useCallback(() => {
+    router.navigate(hrefAfterEditPerson(params as Record<string, string | string[] | undefined>));
+  }, [router, params]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,11 +130,11 @@ export default function EditPersonScreen() {
       }
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar os dados');
-      router.back();
+      leaveScreen();
     } finally {
       setLoading(false);
     }
-  }, [router, targetId]);
+  }, [leaveScreen, targetId]);
 
   useEffect(() => {
     load();
@@ -183,7 +191,7 @@ export default function EditPersonScreen() {
         });
         Alert.alert('Salvo', 'Contato atualizado');
       }
-      router.back();
+      leaveScreen();
     } catch (e: any) {
       Alert.alert('Erro', e.response?.data?.message ?? 'Falha ao salvar');
     } finally {
@@ -205,7 +213,7 @@ export default function EditPersonScreen() {
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
-        <ActivityIndicator color={CHIP_GREEN} />
+        <ActivityIndicator color={BRAND_ACCENT} />
         <Text style={styles.muted}>Carregando...</Text>
       </View>
     );
@@ -213,15 +221,15 @@ export default function EditPersonScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.topbar}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()}>
-          <MaterialIcons name="chevron-left" size={26} color="#111" />
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={leaveScreen}>
+          <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>{isSelf ? 'Meu perfil' : 'Editar contato'}</Text>
         <View style={{ width: 40 }} />
-      </View>
+      </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: 28 + insets.bottom }]} keyboardShouldPersistTaps="handled">
         {!isSelf && (
           <>
             <Text style={styles.label}>Nome</Text>
@@ -374,35 +382,48 @@ export default function EditPersonScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#c4c4c4' },
+  root: { flex: 1, backgroundColor: APP_SURFACE_BG },
   center: { alignItems: 'center', justifyContent: 'center' },
-  muted: { color: '#666' },
+  muted: { color: '#64748b' },
   topbar: {
-    paddingTop: 44,
     paddingHorizontal: 12,
-    minHeight: 86,
-    backgroundColor: '#2c9a81',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
   },
   topbarIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  topbarTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
-  body: { padding: 16, paddingBottom: 40 },
-  label: { fontSize: 14, fontWeight: '700', color: '#111', marginTop: 12, marginBottom: 6 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginTop: 16, marginBottom: 8 },
-  readonly: { fontSize: 16, color: '#222', marginBottom: 4 },
+  topbarTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  body: { padding: 16 },
+  label: { fontSize: 14, fontWeight: '700', color: '#0f172a', marginTop: 12, marginBottom: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: BRAND_ACCENT, marginTop: 16, marginBottom: 8 },
+  readonly: { fontSize: 16, color: '#1e293b', marginBottom: 4 },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
     color: '#111',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#cbd5e1',
   },
   textarea: { minHeight: 88, textAlignVertical: 'top' },
   blockBtn: {
@@ -419,8 +440,8 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 28,
     paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: CHIP_GREEN,
+    borderRadius: 12,
+    backgroundColor: BRAND_ACCENT,
     alignItems: 'center',
   },
   saveBtnOff: { opacity: 0.6 },

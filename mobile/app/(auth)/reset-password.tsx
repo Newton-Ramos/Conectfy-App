@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { auth } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
-
-const BRAND = '#2c9a81';
-const PRIMARY = '#0a7ea4';
+import { AUTH_GRADIENT_COLORS, BRAND_ACCENT } from '@/constants/brand';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -61,89 +61,106 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-          <MaterialIcons name="chevron-left" size={28} color="#111" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nova senha</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <LinearGradient colors={[...AUTH_GRADIENT_COLORS]} style={styles.gradient}>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.back} onPress={() => router.back()}>
+            <MaterialIcons name="chevron-left" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Nova senha</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Token</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Cole o token recebido"
-          placeholderTextColor="#999"
-          value={token}
-          onChangeText={setToken}
-          autoCapitalize="none"
-          editable={!loading}
-        />
-        <Text style={styles.label}>Nova senha</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Mínimo 6 caracteres"
-          secureTextEntry
-          value={nova}
-          onChangeText={setNova}
-          editable={!loading}
-        />
-        <Text style={styles.label}>Confirmar senha</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Repita a senha"
-          secureTextEntry
-          value={confirma}
-          onChangeText={setConfirma}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={[styles.cta, loading && styles.ctaOff]}
-          onPress={handleSubmit}
-          disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.ctaText}>Salvar nova senha</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.card}>
+            <Text style={styles.label}>Token</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Cole o token recebido"
+              placeholderTextColor="#8696a0"
+              value={token}
+              onChangeText={setToken}
+              autoCapitalize="none"
+              editable={!loading}
+            />
+            <Text style={styles.label}>Nova senha</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Mínimo 6 caracteres"
+              placeholderTextColor="#8696a0"
+              secureTextEntry
+              value={nova}
+              onChangeText={setNova}
+              editable={!loading}
+            />
+            <Text style={styles.label}>Confirmar senha</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Repita a senha"
+              placeholderTextColor="#8696a0"
+              secureTextEntry
+              value={confirma}
+              onChangeText={setConfirma}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={[styles.cta, loading && styles.ctaOff]}
+              onPress={handleSubmit}
+              disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.ctaText}>Salvar nova senha</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#c4c4c4' },
+  gradient: { flex: 1 },
+  safe: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     paddingBottom: 16,
-    backgroundColor: BRAND,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-    minHeight: 56,
+    minHeight: 52,
   },
   back: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#111' },
-  body: { padding: 20, paddingBottom: 40 },
-  label: { fontWeight: '700', color: '#111', marginBottom: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff', flex: 1, textAlign: 'center' },
+  scroll: { paddingHorizontal: 16, paddingBottom: 32 },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.97)',
+    borderRadius: 20,
+    padding: 22,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  label: { fontWeight: '700', color: '#0f172a', marginBottom: 8 },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e2e8f0',
     marginBottom: 16,
+    color: '#0f172a',
   },
   cta: {
-    backgroundColor: PRIMARY,
+    backgroundColor: BRAND_ACCENT,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },

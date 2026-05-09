@@ -16,9 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usersApi, type ContactUser } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
 import { PREDEFINED_CIRCLE_KEYS, CIRCLE_BADGE_BG } from '@/constants/circles';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
+import { LinearGradient } from 'expo-linear-gradient';
+import { hrefContactsListBack } from '@/lib/detail-screen-back';
 
-const BRAND = '#2c9a81';
-const BG = '#f8fafc';
+const BRAND = BRAND_ACCENT;
+const BG = APP_SURFACE_BG;
 const INK = '#1e293b';
 const MUTED = '#64748b';
 const SEARCH_BG = '#f1f5f9';
@@ -28,7 +31,7 @@ function badgeColorForCircle(tag: string): string {
 }
 
 export default function ContactsScreen() {
-  const params = useLocalSearchParams<{ tag?: string; groupByCircle?: string }>();
+  const params = useLocalSearchParams<{ tag?: string; groupByCircle?: string; backSrc?: string }>();
   const tagParam = typeof params.tag === 'string' ? params.tag : null;
   const groupRaw = params.groupByCircle;
   const groupByCircle =
@@ -62,10 +65,17 @@ export default function ContactsScreen() {
     }, [load]),
   );
 
-  const openAdd = () =>
+  const openAdd = () => {
+    const backSrc = typeof params.backSrc === 'string' ? params.backSrc : undefined;
     router.push({
       pathname: '/(tabs)/add-contact' as any,
+      params: { from: backSrc === 'home' ? 'home' : 'contacts' },
     });
+  };
+
+  const goBackFromContacts = () => {
+    router.navigate(hrefContactsListBack(params as Record<string, string | string[] | undefined>));
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -96,7 +106,7 @@ export default function ContactsScreen() {
       onPress={() =>
         router.push({
           pathname: '/(tabs)/edit-person' as any,
-          params: { userId: String(item.id) },
+          params: { userId: String(item.id), from: 'contacts' },
         })
       }
       activeOpacity={0.85}>
@@ -150,8 +160,8 @@ export default function ContactsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={goBackFromContacts} hitSlop={12}>
           <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle} numberOfLines={1}>
@@ -160,7 +170,7 @@ export default function ContactsScreen() {
         <TouchableOpacity style={styles.topbarIcon} onPress={openAdd} hitSlop={12}>
           <MaterialIcons name="add-circle-outline" size={26} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <View style={styles.searchArea}>
         <View style={styles.search}>
@@ -237,7 +247,6 @@ const styles = StyleSheet.create({
   topbar: {
     paddingHorizontal: 12,
     paddingBottom: 14,
-    backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',

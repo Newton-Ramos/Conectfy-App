@@ -15,7 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
+
+const CALENDAR_SCREEN: Href = '/(tabs)/calendar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BRAND_GRADIENT_COLORS,
@@ -119,7 +121,7 @@ export default function EventCreateScreen() {
     };
     const existing = await loadCalendarEvents();
     await saveCalendarEvents([...existing, ev]);
-    router.back();
+    router.navigate(CALENDAR_SCREEN);
   }, [title, notes, when, router]);
 
   return (
@@ -135,7 +137,7 @@ export default function EventCreateScreen() {
           style={[styles.hero, { paddingTop: insets.top + 12 }]}>
           <BrandSparkles corners color="rgba(255,255,255,0.55)" />
           <NetworkMotif opacity={0.22} />
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={14}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate(CALENDAR_SCREEN)} hitSlop={14}>
             <MaterialIcons name="close" size={26} color="#fff" />
           </TouchableOpacity>
 
@@ -213,7 +215,10 @@ export default function EventCreateScreen() {
           />
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.btnGhost} onPress={() => router.back()} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.btnGhost}
+              onPress={() => router.navigate(CALENDAR_SCREEN)}
+              activeOpacity={0.85}>
               <Text style={styles.btnGhostTxt}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnPrimary} onPress={() => void save()} activeOpacity={0.9}>

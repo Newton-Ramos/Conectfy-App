@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
             {/* Remove o slogan do topo; mantém apenas abaixo do nome. */}
             <View style={styles.heroEmblemWrap}>
               <Image
-                source={require('@/assets/images/Conectfy Logo Grande Fundo Verde Restilizada.jpg')}
+                source={require('@/assets/images/Conectfy Logo Grande Fundo Verde Reestilizada.jpg')}
                 style={styles.heroEmblem}
                 resizeMode="cover"
                 accessibilityLabel="Conectfy"

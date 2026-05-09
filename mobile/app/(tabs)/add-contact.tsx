@@ -10,8 +10,10 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { hrefAfterAddContact } from '@/lib/detail-screen-back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, usersApi, type ContactUser } from '@/api/client';
 import { getApiErrorMessage } from '@/lib/api-error';
@@ -23,9 +25,10 @@ import {
   validateNomeCadastro,
   validateTelefoneBrObrigatorio,
 } from '@/lib/contact-validation';
+import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 
-const BRAND = '#2c9a81';
-const BG = '#f1f5f9';
+const BRAND = BRAND_ACCENT;
+const BG = APP_SURFACE_BG;
 const INPUT_BORDER = '#e2e8f0';
 const LABEL_COLOR = '#475569';
 const INFO_BG = '#e0f2fe';
@@ -43,6 +46,7 @@ function emailMeetsBasicUiRule(emailRaw: string): boolean {
 
 export default function AddContactScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string }>();
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -109,6 +113,10 @@ export default function AddContactScreen() {
     load();
   }, [load]);
 
+  const leaveScreen = () => {
+    router.navigate(hrefAfterAddContact(params as Record<string, string | string[] | undefined>));
+  };
+
   const handleSave = async () => {
     if (!canPressAdd) return;
     if (!runValidation()) return;
@@ -150,7 +158,7 @@ export default function AddContactScreen() {
       });
 
       Alert.alert('OK', 'Contato adicionado');
-      router.back();
+      leaveScreen();
     } catch (e: unknown) {
       Alert.alert('Erro', getApiErrorMessage(e, 'Falha ao adicionar'));
     } finally {
@@ -177,13 +185,13 @@ export default function AddContactScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+      <LinearGradient colors={[...BRAND_GRADIENT_COLORS]} style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={leaveScreen} hitSlop={12}>
           <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>Adicionar contato</Text>
         <View style={{ width: 44 }} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: 40 + insets.bottom }]}
@@ -275,7 +283,7 @@ export default function AddContactScreen() {
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={styles.ghostBtn}
-            onPress={() => router.back()}
+            onPress={leaveScreen}
             disabled={saving}
             activeOpacity={0.7}>
             <Text style={styles.ghostBtnText}>Cancelar</Text>
@@ -307,7 +315,6 @@ const styles = StyleSheet.create({
   topbar: {
     paddingHorizontal: 12,
     paddingBottom: 14,
-    backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',

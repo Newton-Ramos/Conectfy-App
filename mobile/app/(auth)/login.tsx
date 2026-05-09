@@ -216,7 +216,7 @@ export default function LoginScreen() {
                 <View style={styles.heroInner}>
                   <View style={[styles.heroEmblemWrap, { width: logoSize, height: logoSize, borderRadius: logoRadius }]}>
                     <Image
-                      source={require('@/assets/images/Conectfy Logo Grande Fundo Verde Restilizada.jpg')}
+                      source={require('@/assets/images/Conectfy Logo Grande Fundo Verde Reestilizada.jpg')}
                       style={[styles.heroEmblem, { width: logoSize, height: logoSize }]}
                       resizeMode="cover"
                       accessibilityLabel="Conectfy"
