@@ -63,6 +63,7 @@ export default function TabLayout() {
       <Tabs.Screen name="chat/[peerId]" options={{ href: null }} />
       <Tabs.Screen name="modal" options={{ href: null }} />
       <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="event-create" options={{ href: null }} />
     </Tabs>
     </InAppNotifyProvider>
   );

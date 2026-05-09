@@ -8,9 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, usersApi, type ContactUser } from '@/api/client';
 import { getApiErrorMessage } from '@/lib/api-error';
 import { useAuth } from '@/contexts/auth-context';
@@ -23,10 +25,25 @@ import {
 } from '@/lib/contact-validation';
 
 const BRAND = '#2c9a81';
-const PRIMARY = '#0a7ea4';
+const BG = '#f1f5f9';
+const INPUT_BORDER = '#e2e8f0';
+const LABEL_COLOR = '#475569';
+const INFO_BG = '#e0f2fe';
+const INFO_BORDER = '#bae6fd';
+const INFO_INK = '#0c4a6e';
+const GHOST_TEXT = '#64748b';
+
+type FocusField = 'nome' | 'email' | 'telefone' | 'tags' | 'nota' | null;
+
+/** Heurística simples para habilitar o CTA (evita envio óbvio; submit ainda valida com `validateEmailBasico`). */
+function emailMeetsBasicUiRule(emailRaw: string): boolean {
+  const t = emailRaw.trim().toLowerCase();
+  return t.includes('@') && t.includes('.com');
+}
 
 export default function AddContactScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +55,7 @@ export default function AddContactScreen() {
   const [telefone, setTelefone] = useState('');
   const [tagsText, setTagsText] = useState('');
   const [notaContato, setNotaContato] = useState('');
+  const [focusField, setFocusField] = useState<FocusField>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     nome?: string;
     email?: string;
@@ -46,7 +64,8 @@ export default function AddContactScreen() {
 
   const normalizedEmail = useMemo(() => email.trim().toLowerCase(), [email]);
 
-  /** Valida nome, e-mail e telefone antes de qualquer chamada à API */
+  const canPressAdd = emailMeetsBasicUiRule(email) && !saving;
+
   const runValidation = (): boolean => {
     const nomeTrim = nome.trim();
     const telTrim = telefone.trim();
@@ -91,6 +110,7 @@ export default function AddContactScreen() {
   }, [load]);
 
   const handleSave = async () => {
+    if (!canPressAdd) return;
     if (!runValidation()) return;
 
     const telefoneTrim = telefone.trim();
@@ -138,6 +158,14 @@ export default function AddContactScreen() {
     }
   };
 
+  const inputStyle = (key: Exclude<FocusField, null>, hasError?: boolean) => {
+    return [
+      styles.input,
+      hasError ? styles.inputError : null,
+      !hasError && focusField === key ? styles.inputFocused : null,
+    ];
+  };
+
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
@@ -149,86 +177,122 @@ export default function AddContactScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.topbar}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()}>
-          <MaterialIcons name="chevron-left" size={26} color="#111" />
+      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+          <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle}>Adicionar contato</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.hint}>
-          O e-mail precisa ser de alguém já cadastrado no Conectfy. Nesta tela não aparece lista de usuários.
-        </Text>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: 40 + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.infoCard}>
+          <MaterialIcons name="info-outline" size={20} color={INFO_INK} style={styles.infoIcon} />
+          <Text style={styles.infoText}>
+            O e-mail precisa ser de alguém já cadastrado no Conectfy. Nesta tela não aparece lista de
+            usuários.
+          </Text>
+        </View>
 
         <Text style={styles.label}>Nome</Text>
         <TextInput
-          style={[styles.input, fieldErrors.nome ? styles.inputError : null]}
+          style={inputStyle('nome', Boolean(fieldErrors.nome))}
           value={nome}
           onChangeText={(t) => {
             setNome(onlyLettersAndAccents(t));
             setFieldErrors((e) => ({ ...e, nome: undefined }));
           }}
+          onFocus={() => setFocusField('nome')}
+          onBlur={() => setFocusField(null)}
           placeholder="Nome da pessoa"
+          placeholderTextColor="#94a3b8"
           autoCapitalize="words"
         />
         {fieldErrors.nome ? <Text style={styles.errorText}>{fieldErrors.nome}</Text> : null}
 
         <Text style={styles.label}>E-mail</Text>
         <TextInput
-          style={[styles.input, fieldErrors.email ? styles.inputError : null]}
+          style={inputStyle('email', Boolean(fieldErrors.email))}
           value={email}
           onChangeText={(t) => {
             setEmail(t);
             setFieldErrors((e) => ({ ...e, email: undefined }));
           }}
+          onFocus={() => setFocusField('email')}
+          onBlur={() => setFocusField(null)}
           placeholder="email@exemplo.com"
+          placeholderTextColor="#94a3b8"
           autoCapitalize="none"
           keyboardType="email-address"
+          autoCorrect={false}
         />
         {fieldErrors.email ? <Text style={styles.errorText}>{fieldErrors.email}</Text> : null}
 
         <Text style={styles.label}>Telefone</Text>
         <TextInput
-          style={[styles.input, fieldErrors.telefone ? styles.inputError : null]}
+          style={inputStyle('telefone', Boolean(fieldErrors.telefone))}
           value={telefone}
           onChangeText={(t) => {
             setTelefone(maskPhoneBr(t));
             setFieldErrors((e) => ({ ...e, telefone: undefined }));
           }}
-          placeholder="(61) 99999-9999"
-          keyboardType="phone-pad"
+          onFocus={() => setFocusField('telefone')}
+          onBlur={() => setFocusField(null)}
+          placeholder="(00) 00000-0000"
+          placeholderTextColor="#94a3b8"
+          keyboardType="numeric"
         />
         {fieldErrors.telefone ? <Text style={styles.errorText}>{fieldErrors.telefone}</Text> : null}
 
         <Text style={styles.label}>Tags de contato</Text>
+        <Text style={styles.tagsHint}>Separe as tags por vírgula (ex: Trabalho, Família)</Text>
         <TextInput
-          style={styles.input}
+          style={inputStyle('tags')}
           value={tagsText}
           onChangeText={setTagsText}
-          placeholder="familia, trabalho, amigo"
+          onFocus={() => setFocusField('tags')}
+          onBlur={() => setFocusField(null)}
+          placeholder="Ex: Networking, Amigos..."
+          placeholderTextColor="#94a3b8"
           autoCapitalize="none"
         />
 
         <Text style={styles.label}>Nota de contato</Text>
         <TextInput
-          style={[styles.input, styles.textarea]}
+          style={[inputStyle('nota'), styles.textarea]}
           value={notaContato}
           onChangeText={setNotaContato}
+          onFocus={() => setFocusField('nota')}
+          onBlur={() => setFocusField(null)}
           placeholder="Anotações sobre esse contato"
+          placeholderTextColor="#94a3b8"
           multiline
         />
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()} disabled={saving}>
-            <Text style={styles.secondaryBtnText}>Cancelar</Text>
+          <TouchableOpacity
+            style={styles.ghostBtn}
+            onPress={() => router.back()}
+            disabled={saving}
+            activeOpacity={0.7}>
+            <Text style={styles.ghostBtnText}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.primaryBtn, saving && styles.btnOff]}
+            style={[styles.primaryBtn, (!canPressAdd || saving) && styles.primaryBtnDisabled]}
             onPress={handleSave}
-            disabled={saving}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Adicionar</Text>}
+            disabled={!canPressAdd}
+            activeOpacity={0.88}>
+            {saving ? (
+              <View style={styles.primaryBtnInner}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.primaryBtnText}>Adicionar</Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryBtnText}>Adicionar</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -237,68 +301,134 @@ export default function AddContactScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#c4c4c4' },
+  root: { flex: 1, backgroundColor: BG },
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
-  muted: { color: '#666' },
+  muted: { color: '#64748b', fontSize: 14 },
   topbar: {
-    paddingTop: 44,
     paddingHorizontal: 12,
-    minHeight: 86,
+    paddingBottom: 14,
     backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+      },
+      android: { elevation: 4 },
+    }),
   },
-  topbarIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  topbarTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
-  body: { padding: 16, paddingBottom: 40 },
-  hint: { color: '#333', opacity: 0.85, fontSize: 13, marginBottom: 10 },
-  label: { fontSize: 14, fontWeight: '700', color: '#111', marginTop: 12, marginBottom: 6 },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#111',
+  topbarIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  topbarTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  body: { paddingHorizontal: 16, paddingTop: 16 },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: INFO_BG,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: INFO_BORDER,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+  },
+  infoIcon: { marginTop: 1 },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: INFO_INK,
+    fontWeight: '500',
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: LABEL_COLOR,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  tagsHint: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 8,
+    marginTop: -2,
+    fontWeight: '500',
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    fontSize: 16,
+    color: '#0f172a',
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+  },
+  inputFocused: {
+    borderColor: BRAND,
+    borderWidth: 1,
   },
   inputError: {
-    borderColor: '#c62828',
-    borderWidth: 2,
+    borderColor: '#dc2626',
+    borderWidth: 1,
   },
   errorText: {
-    color: '#c62828',
+    color: '#dc2626',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     fontWeight: '600',
   },
-  textarea: { minHeight: 100, textAlignVertical: 'top' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  primaryBtn: {
+  textarea: { minHeight: 108, textAlignVertical: 'top', paddingTop: 12 },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginTop: 28,
+  },
+  ghostBtn: {
     flex: 1,
-    backgroundColor: PRIMARY,
-    paddingVertical: 14,
     borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
-  },
-  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  secondaryBtn: {
-    width: 120,
+    minHeight: 50,
     borderWidth: 1,
-    borderColor: PRIMARY,
+    borderColor: '#e2e8f0',
+    backgroundColor: 'transparent',
+  },
+  ghostBtnText: {
+    color: GHOST_TEXT,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  primaryBtn: {
+    flex: 2,
+    backgroundColor: BRAND,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
-    minHeight: 48,
+    minHeight: 50,
   },
-  secondaryBtnText: { color: PRIMARY, fontWeight: '800' },
-  btnOff: { opacity: 0.6 },
+  primaryBtnDisabled: {
+    opacity: 0.42,
+  },
+  primaryBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

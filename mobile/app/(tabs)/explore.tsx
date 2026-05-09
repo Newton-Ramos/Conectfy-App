@@ -259,6 +259,9 @@ export default function ConversationsScreen() {
 
   const renderItem = ({ item }: { item: ConversationPreview }) => {
     const muted = prefs.muted.includes(item.id);
+    const isVoice =
+      typeof item.lastMessage === 'string' &&
+      /voz|áudio|audio|voice/i.test(item.lastMessage);
     return (
       <Swipeable
         renderRightActions={() => renderRightActions(item)}
@@ -282,19 +285,19 @@ export default function ConversationsScreen() {
                   <MaterialIcons name="notifications-off" size={16} color="#8696a0" style={styles.muteIcon} />
                 ) : null}
                 <Text style={styles.time}>{formatListTime(item.lastMessageTime)}</Text>
+                {item.unreadCount > 0 ? <View style={styles.unreadDot} /> : null}
               </View>
             </View>
             <View style={styles.rowBottom}>
+              <MaterialIcons
+                name={isVoice ? 'mic' : 'done'}
+                size={14}
+                color="#64748b"
+                style={styles.previewIcon}
+              />
               <Text style={styles.preview} numberOfLines={1}>
                 {item.lastMessage || 'Sem mensagens'}
               </Text>
-              {item.unreadCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {item.unreadCount > 99 ? '99+' : item.unreadCount}
-                  </Text>
-                </View>
-              ) : null}
             </View>
           </View>
         </Pressable>
@@ -303,15 +306,16 @@ export default function ConversationsScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={styles.root}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.headerTitle}>Conversas</Text>
         <TouchableOpacity
           onPress={openPickContacts}
           hitSlop={12}
           style={styles.headerBtn}
+          activeOpacity={0.75}
           accessibilityLabel="Nova conversa">
-          <MaterialIcons name="add" size={28} color="#fff" />
+          <MaterialIcons name="edit" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -441,8 +445,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 14,
     paddingTop: 8,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -457,7 +461,11 @@ const styles = StyleSheet.create({
     }),
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', flex: 1 },
-  headerBtn: { padding: 6 },
+  headerBtn: {
+    padding: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
   archivedBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -470,7 +478,7 @@ const styles = StyleSheet.create({
   },
   archivedBarText: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingBottom: 24 },
+  listContent: { paddingBottom: 100 },
   emptyContainer: { flexGrow: 1 },
   emptyInner: {
     alignItems: 'center',
@@ -486,8 +494,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  rowPressed: { backgroundColor: '#f0f2f5' },
+  rowPressed: { opacity: 0.92 },
   avatar: {
     width: 54,
     height: 54,
@@ -508,21 +528,23 @@ const styles = StyleSheet.create({
   },
   rowTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   muteIcon: { marginRight: 2 },
-  peerName: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111' },
+  peerName: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111' },
   time: { fontSize: 12, color: '#889096', fontVariant: ['tabular-nums'] },
-  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  preview: { flex: 1, fontSize: 15, color: '#667781' },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
-    borderRadius: 11,
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: BRAND,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 2,
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: '#e9edef', marginLeft: 82 },
+  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  previewIcon: { marginRight: 2 },
+  preview: { flex: 1, fontSize: 14, color: '#64748b' },
+  sep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#eef2f6',
+    marginHorizontal: 24,
+  },
   modalRoot: { flex: 1, backgroundColor: BG },
   modalHeader: {
     flexDirection: 'row',

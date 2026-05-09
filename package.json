@@ -26,6 +26,7 @@
     "passport-jwt": "^4.0.1",
     "pg": "^8.20.0",
     "react-native-gesture-handler": "^2.31.2",
+    "react-native-svg": "15.15.3",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "typeorm": "^0.3.28"

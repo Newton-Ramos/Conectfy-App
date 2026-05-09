@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,119 @@ import {
   Pressable,
   useWindowDimensions,
   Alert,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationsApi, type NotificationRow } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
+import { BRAND_GRADIENT_COLORS, BRAND_TEAL_DEEP, LOGO_IMAGE, SLOGAN_UPPER } from '@/constants/brand';
+import { NetworkMotif } from '@/components/brand/NetworkMotif';
 
-const BRAND = '#2c9a81';
+const BRAND = BRAND_TEAL_DEEP;
+const PAGE_BG = '#f8fafc';
+const INK = '#0f172a';
+const MUTED = '#94a3b8';
+const SUBTLE = '#64748b';
+const GUTTER = 16;
+/** Metade da barra de busca “invade” o verde (~26–30px). */
+const SEARCH_HALF_OVERLAP = 28;
+/** Puxa o corpo para perto da busca (elimina faixa branca vazia). */
+const BODY_PULLUP = 30;
+
+/** Cards de círculo: fundo colorido suave em todo o chip (sem “quadrado branco”). */
+const CIRCLE_CHIPS: {
+  key: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  accent: string;
+  cardBg: string;
+  iconBg: string;
+}[] = [
+  {
+    key: 'Família',
+    icon: 'home',
+    accent: '#c2410c',
+    cardBg: '#fff7ed',
+    iconBg: 'rgba(234, 88, 12, 0.22)',
+  },
+  {
+    key: 'Amigos',
+    icon: 'favorite',
+    accent: '#be123c',
+    cardBg: '#fff1f2',
+    iconBg: 'rgba(225, 29, 72, 0.2)',
+  },
+  {
+    key: 'Trabalho',
+    icon: 'work',
+    accent: '#334155',
+    cardBg: '#f1f5f9',
+    iconBg: 'rgba(71, 85, 105, 0.18)',
+  },
+  {
+    key: 'Networking',
+    icon: 'badge',
+    accent: '#1d4ed8',
+    cardBg: '#eff6ff',
+    iconBg: 'rgba(37, 99, 235, 0.18)',
+  },
+];
+
+function pickTimelineIcon(n: NotificationRow): {
+  name: React.ComponentProps<typeof MaterialIcons>['name'];
+  color: string;
+  bubble: string;
+} {
+  const k = (n.kind || '').toLowerCase();
+  const t = (n.title || '').toLowerCase();
+
+  /* Aniversário / Agatha — rosa suave */
+  if (k === 'aniversario' || t.includes('aniversário') || t.includes('aniversario') || t.includes('agatha')) {
+    return { name: 'cake', color: '#be185d', bubble: '#fce7f3' };
+  }
+
+  /* Happy Hour / João / convite — amarelo suave */
+  if (
+    t.includes('happy hour') ||
+    t.includes('joão') ||
+    t.includes('joao') ||
+    t.includes('convid') ||
+    t.includes('bar ')
+  ) {
+    return { name: 'celebration', color: '#b45309', bubble: '#fef9c3' };
+  }
+
+  /* Carina / sistema / grupo — azul suave */
+  if (t.includes('carina') || t.includes('adicionad') || t.includes('grupo')) {
+    return { name: 'group-add', color: '#1d4ed8', bubble: '#dbeafe' };
+  }
+
+  if (k === 'evento') {
+    return { name: 'event', color: BRAND_TEAL_DEEP, bubble: '#d1fae5' };
+  }
+
+  return { name: 'notifications', color: SUBTLE, bubble: '#f1f5f9' };
+}
+
+function formatFeedRelative(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'agora';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  if (h < 48) return `${h} h`;
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +134,7 @@ export default function HomeScreen() {
   const { signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<NotificationRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<NotificationRow | null>(null);
@@ -53,9 +159,24 @@ export default function HomeScreen() {
     }, [load]),
   );
 
-  const hoje = items.filter((n) => n.grupo === 'hoje');
-  const ontem = items.filter((n) => n.grupo === 'ontem');
-  const rest = items.filter((n) => n.grupo !== 'hoje' && n.grupo !== 'ontem');
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (n) =>
+        (n.title || '').toLowerCase().includes(q) ||
+        (n.body || '').toLowerCase().includes(q) ||
+        (n.grupo || '').toLowerCase().includes(q),
+    );
+  }, [items, searchQuery]);
+
+  const hoje = filteredItems.filter((n) => n.grupo === 'hoje');
+  const ontem = filteredItems.filter((n) => n.grupo === 'ontem');
+  const rest = filteredItems.filter((n) => n.grupo !== 'hoje' && n.grupo !== 'ontem');
+
+  /** Badge no sino: até 9 itens mostra o número; na demo com 3 notificações aparece “3”. */
+  const badgeCount = items.length > 9 ? '9+' : String(Math.max(items.length, 0));
+  const showBadge = items.length > 0;
 
   const openNotification = (n: NotificationRow) => {
     setSelected(n);
@@ -91,133 +212,199 @@ export default function HomeScreen() {
     });
   };
 
-  const renderNoticeRow = (n: NotificationRow) => (
-    <TouchableOpacity key={n.id} style={styles.noticeCard} onPress={() => openNotification(n)} activeOpacity={0.85}>
-      <Text style={styles.noticeText}>{n.title}</Text>
-      {n.kind === 'evento' ? (
-        <Text style={styles.noticeHint}>Toque para detalhes e presença</Text>
-      ) : (
-        <Text style={styles.noticeHint}>Toque para ver</Text>
-      )}
-    </TouchableOpacity>
-  );
+  const renderTimelineItem = (n: NotificationRow, isLast: boolean) => {
+    const icon = pickTimelineIcon(n);
+    return (
+      <View key={n.id} style={styles.tlItem}>
+        <View style={styles.tlAxis}>
+          {!isLast ? <View style={styles.tlVline} /> : null}
+          <View style={[styles.tlDot, { backgroundColor: icon.bubble }]}>
+            <MaterialIcons name={icon.name} size={17} color={icon.color} />
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.tlBody}
+          onPress={() => openNotification(n)}
+          activeOpacity={0.88}>
+          <Text style={styles.tlTitle} numberOfLines={2}>
+            {n.title}
+          </Text>
+          <Text style={styles.tlHint}>
+            {formatFeedRelative(n.createdAt)} ·{' '}
+            {n.kind === 'evento' ? 'Toque para detalhes e presença' : 'Toque para ver'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderGroup = (label: string, list: NotificationRow[]) => {
+    if (list.length === 0) return null;
+    return (
+      <View style={styles.groupBlock}>
+        <Text style={styles.groupLabel}>{label}</Text>
+        <View style={styles.tlList}>
+          {list.map((n, i) => renderTimelineItem(n, i === list.length - 1))}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
+      {/* Bloco de identidade — gradiente + base arredondada */}
+      <LinearGradient
+        colors={[...BRAND_GRADIENT_COLORS]}
+        start={{ x: 0.15, y: 1 }}
+        end={{ x: 0.85, y: 0 }}
+        style={[
+          styles.identityBand,
+          {
+            paddingTop: insets.top + 14,
+            paddingBottom: 12,
+            borderBottomLeftRadius: 32,
+            borderBottomRightRadius: 32,
+          },
+        ]}>
+        <NetworkMotif opacity={0.22} />
         <View style={styles.headerTop}>
           <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>C</Text>
+            <Image source={LOGO_IMAGE} style={styles.brandLogo} contentFit="contain" accessibilityLabel="Conectfy" />
+            <View style={styles.brandTextCol}>
+              <Text style={styles.brandText}>Conectfy</Text>
+              <Text style={styles.brandSlogan} numberOfLines={2}>
+                {SLOGAN_UPPER}
+              </Text>
             </View>
-            <Text style={styles.brandText}>Conectfy</Text>
           </View>
 
           <View style={[styles.headerIcons, isWide && styles.headerIconsWide]}>
             <TouchableOpacity
-              style={[styles.headerIcon, styles.headerIconGrow]}
+              style={styles.headerIconBtn}
               onPress={() => router.push('/(tabs)/calendar' as any)}
               accessibilityLabel="Calendário e datas importantes">
-              <MaterialIcons name="event" size={22} color="#111" />
+              <MaterialIcons name="event" size={23} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.headerIcon, styles.headerIconGrow]}
+              style={styles.headerIconBtn}
               onPress={() => setNotifCenterOpen(true)}
               accessibilityLabel="Central de notificações">
-              {items.length > 0 && (
+              {showBadge ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{items.length > 9 ? '9+' : String(items.length)}</Text>
+                  <Text style={styles.badgeText}>{badgeCount}</Text>
                 </View>
-              )}
-              <MaterialIcons name="notifications" size={22} color="#111" />
+              ) : null}
+              <MaterialIcons name={showBadge ? 'notifications' : 'notifications-none'} size={23} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
+      </LinearGradient>
 
-        <View style={styles.search}>
-          <MaterialIcons name="search" size={20} color="#828282" />
-          <TextInput placeholder="Buscar" placeholderTextColor="#828282" style={styles.searchInput} />
+      {/* Busca: ~metade dentro do verde, ~metade no corpo branco */}
+      <View style={[styles.searchFloatOuter, { paddingHorizontal: GUTTER, marginTop: -SEARCH_HALF_OVERLAP }]}>
+        <View style={styles.searchFloating}>
+          <View style={styles.searchIconSlot}>
+            <MaterialIcons name="search" size={22} color={SUBTLE} />
+          </View>
+          <TextInput
+            placeholder="Buscar conexões, grupos ou eventos..."
+            placeholderTextColor={MUTED}
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity
+              style={styles.searchIconSlot}
+              onPress={() => setSearchQuery('')}
+              hitSlop={10}>
+              <MaterialIcons name="close" size={20} color={MUTED} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator color="#2c9a81" />
+          <ActivityIndicator color={BRAND} size="large" />
         </View>
       ) : (
-        <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 24 }}>
-          <Text style={styles.sectionTitle}>Círculos</Text>
+        <ScrollView
+          style={[styles.bodyScroll, { marginTop: -BODY_PULLUP }]}
+          contentContainerStyle={[
+            styles.bodyContent,
+            { paddingBottom: 32 + insets.bottom, paddingHorizontal: GUTTER },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <Text style={[styles.sectionTitle, styles.sectionFirst]}>Círculos</Text>
 
-          <View style={[styles.circleRow, isWide && styles.circleRowWide]}>
+          <View style={styles.circleRow}>
+            {CIRCLE_CHIPS.map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                style={[styles.circleCard, { backgroundColor: c.cardBg }]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/contacts' as any,
+                    params: { tag: c.key },
+                  })
+                }
+                activeOpacity={0.9}>
+                <View style={styles.circleIconShell}>
+                  <NetworkMotif opacity={0.35} />
+                  <View style={[styles.circleIconRound, { backgroundColor: c.iconBg }]}>
+                    <MaterialIcons name={c.icon} size={26} color={c.accent} />
+                  </View>
+                </View>
+                <Text style={[styles.circleCardLabel, { color: c.accent }]} numberOfLines={2}>
+                  {c.key}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.quickSectionLabel}>Ações rápidas</Text>
+          <View style={[styles.quickRow, isWide && styles.actionRowWide]}>
             <TouchableOpacity
-              style={[styles.circleCard, isWide ? styles.circleCardWide : styles.circleCardNarrow]}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/contacts' as any,
-                  params: { tag: 'Família' },
-                })
-              }>
-              <MaterialIcons name="home" size={28} color="#111" />
-              <Text style={styles.circleLabel}>Família</Text>
+              style={styles.quickCard}
+              onPress={() => router.push('/(tabs)/contacts' as any)}
+              activeOpacity={0.88}>
+              <MaterialIcons name="format-list-bulleted" size={22} color={BRAND_TEAL_DEEP} />
+              <Text style={styles.quickCardTitle}>Gerenciar Lista</Text>
+              <Text style={styles.quickCardSub}>Contatos e círculos</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.circleCard, isWide ? styles.circleCardWide : styles.circleCardNarrow]}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/contacts' as any,
-                  params: { tag: 'Amigos' },
-                })
-              }>
-              <MaterialIcons name="favorite" size={28} color="#111" />
-              <Text style={styles.circleLabel}>Amigos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.circleCard, isWide ? styles.circleCardWide : styles.circleCardNarrow]}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/contacts' as any,
-                  params: { tag: 'Trabalho' },
-                })
-              }>
-              <MaterialIcons name="work" size={28} color="#111" />
-              <Text style={styles.circleLabel}>Trabalho</Text>
+              style={styles.quickCardPrimary}
+              onPress={() => router.push('/(tabs)/add-contact' as any)}
+              activeOpacity={0.9}>
+              <MaterialIcons name="person-add-alt-1" size={22} color="#fff" />
+              <Text style={styles.quickCardPrimaryTitle}>Adicionar Rápido</Text>
+              <Text style={styles.quickCardPrimarySub}>Novo contato</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.actionRow, isWide && styles.actionRowWide]}>
-            <TouchableOpacity style={[styles.pill, styles.pillFlex]} onPress={() => router.push('/(tabs)/contacts' as any)}>
-              <Text style={styles.pillText}>Contatos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.pill, styles.pillFlex, styles.pillGrow]}
-              onPress={() => router.push('/(tabs)/add-contact' as any)}>
-              <Text style={styles.pillText}>Adicionar novo contato</Text>
-              <MaterialIcons name="add-circle-outline" size={18} color="#111" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={[styles.pill, styles.pillSelfStart]}
-            onPress={() => router.push('/(tabs)/calendar' as any)}>
-            <Text style={styles.pillText}>Eventos e datas</Text>
-            <MaterialIcons name="calendar-month" size={18} color="#111" />
-          </TouchableOpacity>
-
-          <View style={{ marginTop: 16 }}>
-            <Text style={styles.sectionTitle}>Notificações importantes</Text>
-            {hoje.length > 0 && <Text style={styles.subHeader}>Hoje</Text>}
-            {hoje.map(renderNoticeRow)}
-            {ontem.length > 0 && <Text style={styles.subHeader}>Ontem</Text>}
-            {ontem.map(renderNoticeRow)}
-            {rest.length > 0 && <Text style={styles.subHeader}>Mais</Text>}
-            {rest.map(renderNoticeRow)}
-            {items.length === 0 && (
-              <Text style={styles.emptyNote}>Nenhuma notificação no momento.</Text>
-            )}
+          <View style={styles.notifSection}>
+            <Text style={styles.sectionTitle}>Painel de Atualizações</Text>
+            {renderGroup('Hoje', hoje)}
+            {renderGroup('Ontem', ontem)}
+            {rest.length > 0 ? renderGroup('Anteriores', rest) : null}
+            {filteredItems.length === 0 ? (
+              <Text style={styles.emptyNote}>
+                {items.length === 0
+                  ? 'Nenhuma notificação no momento.'
+                  : 'Nenhum resultado para sua busca.'}
+              </Text>
+            ) : null}
           </View>
         </ScrollView>
       )}
 
-      <Modal visible={notifCenterOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setNotifCenterOpen(false)}>
+      <Modal
+        visible={notifCenterOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setNotifCenterOpen(false)}>
         <View style={[styles.modalRoot, { paddingTop: insets.top }]}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setNotifCenterOpen(false)} hitSlop={12}>
@@ -262,7 +449,7 @@ export default function HomeScreen() {
                   </Text>
                 ) : null}
 
-                {selected?.kind === 'evento' ? (
+                {selected.kind === 'evento' ? (
                   <View style={styles.rsvpRow}>
                     <TouchableOpacity
                       style={[styles.rsvpBtn, styles.rsvpSim]}
@@ -291,122 +478,335 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#c4c4c4' },
-  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  header: {
-    backgroundColor: BRAND,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+const floatShadow = Platform.select({
+  ios: {
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: {
+  android: { elevation: 6 },
+  default: {},
+});
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: PAGE_BG },
+  identityBand: {
+    position: 'relative',
+    paddingHorizontal: GUTTER,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#145c4d',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: { elevation: 5 },
+    }),
+  },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    gap: 12,
+    marginBottom: 40,
+    zIndex: 2,
+  },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, zIndex: 2 },
+  brandLogo: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 3,
-    borderColor: '#fff',
+  },
+  brandTextCol: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  brandText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  brandSlogan: {
+    marginTop: 4,
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    lineHeight: 12,
+  },
+  headerIcons: { flexDirection: 'row', gap: 12, flexShrink: 0, alignItems: 'center' },
+  headerIconsWide: { gap: 14 },
+  headerIconBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    overflow: 'visible',
   },
-  brandMarkText: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  brandText: { color: '#fff', fontSize: 28, fontWeight: '800' },
-  headerIcons: { flexDirection: 'row', gap: 8, flexShrink: 0 },
-  headerIconsWide: { gap: 12 },
-  headerIcon: {
-    minWidth: 40,
-    minHeight: 40,
-    borderRadius: 18,
-    backgroundColor: '#d5d4d4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-  headerIconGrow: { flexGrow: 1, maxWidth: 160 },
   badge: {
     position: 'absolute',
-    right: -2,
-    top: -6,
-    minWidth: 16,
-    height: 17,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: '#ff2b2b',
+    right: -5,
+    top: -7,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: '#ef4444',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
+    borderWidth: 2,
+    borderColor: BRAND_TEAL_DEEP,
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  search: {
-    marginTop: 16,
-    minHeight: 44,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
-    alignItems: 'center',
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  searchFloatOuter: {
+    marginBottom: 4,
+    zIndex: 10,
+  },
+  searchFloating: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  searchInput: { flex: 1, minHeight: 44, fontSize: 16, color: '#111' },
-  body: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 10 },
-  circleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10, justifyContent: 'space-between' },
-  circleRowWide: { justifyContent: 'flex-start', gap: 16 },
-  circleCard: {
-    backgroundColor: '#7cbcad',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 10,
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    minHeight: 50,
+    paddingVertical: 0,
+    borderWidth: 1,
+    borderColor: '#e8eef4',
+    ...floatShadow,
   },
-  circleCardNarrow: {
-    width: '30%',
-    flexGrow: 1,
-    minWidth: 96,
-    maxWidth: '33%',
-    minHeight: 104,
-  },
-  circleCardWide: {
-    flex: 1,
-    minWidth: 120,
-    maxWidth: 200,
-    minHeight: 104,
-  },
-  circleLabel: { fontSize: 16, fontWeight: '700', color: '#111', textAlign: 'center' },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-  actionRowWide: { gap: 16 },
-  pill: {
-    minHeight: 44,
-    backgroundColor: '#eee',
-    borderRadius: 8,
+  searchIconSlot: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: INK,
+    minHeight: 44,
+    paddingVertical: Platform.OS === 'android' ? 8 : 10,
+    margin: 0,
+    textAlignVertical: 'center',
+  },
+  bodyScroll: { flex: 1 },
+  bodyContent: {
+    paddingTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: INK,
+    marginBottom: 14,
+    letterSpacing: -0.4,
+  },
+  sectionFirst: {
+    marginTop: 0,
+    marginBottom: 14,
+  },
+  circleRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
     gap: 8,
-    paddingHorizontal: 12,
+    marginBottom: 14,
   },
-  pillFlex: { minWidth: 118 },
-  pillGrow: { flex: 1, minWidth: 160 },
-  pillSelfStart: { alignSelf: 'flex-start', marginTop: 10 },
-  pillText: { fontSize: 14, fontWeight: '600', color: '#111', flexShrink: 1 },
-  subHeader: { marginTop: 8, color: '#111', fontSize: 16 },
-  noticeCard: {
-    marginTop: 8,
-    backgroundColor: '#f4eded',
-    borderRadius: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  circleCard: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 6,
     alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  noticeText: { fontSize: 14, fontWeight: '600', color: '#111', textAlign: 'center' },
-  noticeHint: { fontSize: 12, color: '#555', marginTop: 6 },
-  emptyNote: { marginTop: 8, color: '#666', textAlign: 'center' },
-  modalRoot: { flex: 1, backgroundColor: '#e8e8e8' },
+  circleIconShell: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  circleIconRound: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  circleCardLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 15,
+  },
+  quickSectionLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: SUBTLE,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginBottom: 36,
+  },
+  actionRowWide: { maxWidth: 720, alignSelf: 'center', width: '100%' },
+  quickCard: {
+    flex: 1,
+    minHeight: 108,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  quickCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: INK,
+    textAlign: 'center',
+  },
+  quickCardSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: MUTED,
+    textAlign: 'center',
+  },
+  quickCardPrimary: {
+    flex: 1,
+    minHeight: 108,
+    borderRadius: 16,
+    backgroundColor: BRAND_TEAL_DEEP,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: BRAND_TEAL_DEEP,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.28,
+        shadowRadius: 10,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  quickCardPrimaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  quickCardPrimarySub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+  },
+  notifSection: {
+    marginTop: 4,
+    paddingBottom: 8,
+  },
+  groupBlock: { marginBottom: 28 },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: SUBTLE,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  },
+  tlList: { paddingLeft: 2 },
+  tlItem: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: 58,
+  },
+  tlAxis: {
+    width: 40,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  /** Linha da timeline — mais grossa e discreta */
+  tlVline: {
+    position: 'absolute',
+    top: 24,
+    left: 18,
+    width: 4,
+    bottom: -6,
+    backgroundColor: '#dfe7f0',
+    borderRadius: 2,
+    opacity: 0.95,
+  },
+  tlDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    marginTop: 4,
+  },
+  tlBody: {
+    flex: 1,
+    paddingBottom: 22,
+    paddingLeft: 10,
+    justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e8eef4',
+  },
+  tlTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: INK,
+    lineHeight: 21,
+  },
+  tlHint: {
+    fontSize: 13,
+    color: MUTED,
+    marginTop: 5,
+    fontWeight: '500',
+  },
+  emptyNote: { marginTop: 16, color: SUBTLE, textAlign: 'center', fontSize: 14, lineHeight: 22 },
+  modalRoot: { flex: 1, backgroundColor: PAGE_BG },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,24 +815,24 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
+    borderBottomColor: '#e2e8f0',
   },
   modalClose: { fontSize: 16, color: BRAND, fontWeight: '600', width: 56 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#111' },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: INK },
   centerRow: {
     padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-    backgroundColor: '#f4eded',
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff',
     marginHorizontal: 12,
     marginTop: 8,
     borderRadius: 12,
   },
-  centerRowTitle: { fontSize: 15, fontWeight: '700', color: '#111' },
-  centerRowSub: { fontSize: 12, color: '#666', marginTop: 4, textTransform: 'capitalize' },
+  centerRowTitle: { fontSize: 15, fontWeight: '700', color: INK },
+  centerRowSub: { fontSize: 12, color: MUTED, marginTop: 4, textTransform: 'capitalize' },
   detailOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
@@ -442,14 +842,14 @@ const styles = StyleSheet.create({
     padding: 20,
     maxHeight: '80%',
   },
-  detailTitle: { fontSize: 18, fontWeight: '800', color: '#111' },
-  detailBody: { fontSize: 15, color: '#333', marginTop: 12, lineHeight: 22 },
+  detailTitle: { fontSize: 18, fontWeight: '800', color: INK },
+  detailBody: { fontSize: 15, color: '#334155', marginTop: 12, lineHeight: 22 },
   detailWhen: { fontSize: 14, color: BRAND, marginTop: 10, fontWeight: '600' },
-  rsvpTag: { marginTop: 10, fontSize: 14, fontWeight: '700', color: '#333' },
+  rsvpTag: { marginTop: 10, fontSize: 14, fontWeight: '700', color: '#334155' },
   rsvpRow: { flexDirection: 'row', gap: 10, marginTop: 18, flexWrap: 'wrap' },
   rsvpBtn: { flex: 1, minWidth: 120, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   rsvpSim: { backgroundColor: BRAND },
-  rsvpNao: { backgroundColor: '#888' },
+  rsvpNao: { backgroundColor: '#64748b' },
   rsvpBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
   detailCloseBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 10 },
   detailCloseTxt: { color: BRAND, fontWeight: '700', fontSize: 16 },

@@ -4,6 +4,7 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
+  Image,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -13,8 +14,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { auth } from '@/api/client';
 import { getApiErrorMessage } from '@/lib/api-error';
@@ -27,18 +30,24 @@ import { useAuth } from '@/contexts/auth-context';
 import { useAuth as useSocialAuth } from '@/hooks/useAuth';
 
 const BRAND = '#2c9a81';
-const PRIMARY = '#0a7ea4';
+const PRIMARY = BRAND;
 const BG = '#f1f5f9';
 const INK = '#0f172a';
 const MUTED = '#64748b';
+const SLATE_50 = '#f8fafc';
+const SLATE_200 = '#e2e8f0';
+const SOCIAL_FB = '#1877F2';
+const SOCIAL_IG = '#000000';
+const GOOGLE_BORDER = '#DCDCDC';
+const GOOGLE_TEXT = '#1F1F1F';
+const GOOGLE_G_LOGO = require('../../assets/images/Google__G__logo.png');
 
 function GoogleOAuthButton(props: {
-  width: number;
   socialBusy: string | null;
   setSocialBusy: React.Dispatch<React.SetStateAction<string | null>>;
   persistSession: (access_token: string, user: object) => Promise<void>;
 }) {
-  const { width, socialBusy, setSocialBusy, persistSession } = props;
+  const { socialBusy, setSocialBusy, persistSession } = props;
   const [, googleResponse, googlePromptAsync] = useGoogleLogin();
 
   useEffect(() => {
@@ -75,25 +84,45 @@ function GoogleOAuthButton(props: {
   return (
     <TouchableOpacity
       style={[
-        styles.socialBtn,
-        width < 360 && styles.socialBtnFull,
+        styles.socialFullBtn,
+        styles.socialGoogle,
         !!socialBusy && styles.socialOff,
       ]}
       disabled={!!socialBusy}
       onPress={() => googlePromptAsync()}>
-      {socialBusy === 'google' ? (
-        <ActivityIndicator />
-      ) : (
-        <FontAwesome5 name="google" size={20} color="#4285F4" />
-      )}
-      <Text style={styles.socialLabel}>Google</Text>
+      <View style={[styles.socialIconWrap, styles.socialIconWrapGoogle]}>
+        {socialBusy === 'google' ? (
+          <ActivityIndicator color={GOOGLE_TEXT} />
+        ) : (
+          <Image source={GOOGLE_G_LOGO} style={styles.googleGLogo} />
+        )}
+      </View>
+      <Text style={[styles.socialFullLabel, styles.socialFullLabelGoogle]}>
+        Continuar com o Google
+      </Text>
     </TouchableOpacity>
   );
 }
 
 export default function LoginScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const gutter = Math.min(22, Math.max(12, Math.round(width * 0.045)));
+  const gap = Math.max(10, Math.round(height * 0.015));
+  const controlPadV = Math.max(10, Math.round(height * 0.015));
+  const heroHeight = Math.round(height * 0.22);
+  const socialBtnHeight = 44;
+  const scale = Math.min(1.05, Math.max(0.85, height / 820));
+  const isSmall = height < 700;
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const shouldCenter = viewportHeight > 0 && contentHeight > 0 && viewportHeight > contentHeight;
+
+  const logoSize = Math.round(48 * scale);
+  const logoRadius = Math.round(logoSize / 2);
+  const brandFont = Math.round(28 * scale);
+  const logoLetterFont = Math.round(24 * scale);
+  const subtitleFont = Math.round(15 * scale);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
@@ -160,167 +189,270 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <StatusBar style="light" backgroundColor={BRAND} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.hero}>
-            <View style={styles.brandRow}>
-              <View style={styles.logoRing}>
-                <Text style={styles.logoLetter}>C</Text>
-              </View>
-              <Text style={styles.brandText}>Conectfy</Text>
-            </View>
-            <Text style={styles.heroSubtitle}>Entre com e-mail e senha</Text>
-          </View>
-
-          <View style={[styles.card, { marginHorizontal: gutter, paddingHorizontal: gutter + 4 }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="E-mail"
-              placeholderTextColor="#828282"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Senha"
-              placeholderTextColor="#828282"
-              value={senha}
-              onChangeText={setSenha}
-              secureTextEntry
-              editable={!loading}
-            />
-            <View style={styles.rowBetween}>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setRemember((v) => !v)}
-                disabled={loading}>
-                <View style={[styles.checkbox, remember && styles.checkboxOn]}>
-                  {remember ? <View style={styles.checkboxDot} /> : null}
+        <View style={styles.shell}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            style={styles.scrollOuter}
+            contentContainerStyle={[
+              styles.scroll,
+              shouldCenter && { justifyContent: 'center' },
+              { paddingBottom: insets.bottom + 20 },
+            ]}
+            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+            onContentSizeChange={(_, h) => setContentHeight(h)}
+            showsVerticalScrollIndicator={false}>
+            <View pointerEvents="none" style={styles.topBounceBg} />
+            <View style={styles.grow}>
+              <View
+                style={[
+                  styles.hero,
+                  {
+                    height: heroHeight,
+                    paddingTop: Math.max(gap, insets.top),
+                    paddingBottom: gap * 2,
+                  },
+                ]}>
+                <View style={styles.brandRow}>
+                  <View
+                    style={[
+                      styles.logoRing,
+                      { width: logoSize, height: logoSize, borderRadius: logoRadius },
+                    ]}>
+                    <Text style={[styles.logoLetter, { fontSize: logoLetterFont }]}>C</Text>
+                  </View>
+                  <Text style={[styles.brandText, { fontSize: brandFont }]}>Conectfy</Text>
                 </View>
-                <Text style={styles.checkboxLabel}>Manter conectado neste dispositivo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.forgotWrapInline}
-                onPress={() => router.push('/(auth)/forgot-password' as any)}
-                disabled={loading}>
-                <Text style={styles.forgotText}>Esqueci minha senha</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={[styles.primaryBtn, loading && styles.disabled]}
-              onPress={handleLogin}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Entrar</Text>
-              )}
-            </TouchableOpacity>
+                <Text style={[styles.heroSubtitle, { fontSize: subtitleFont }]}>
+                  Entre com e-mail e senha
+                </Text>
+              </View>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ou entre com</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={[styles.socialRow, width < 360 && styles.socialRowStack]}>
-              {googleConfigured ? (
-                <GoogleOAuthButton
-                  width={width}
-                  socialBusy={socialBusy}
-                  setSocialBusy={setSocialBusy}
-                  persistSession={persistSession}
+              <View
+                style={[
+                  styles.card,
+                  {
+                    marginHorizontal: gutter,
+                    paddingHorizontal: gutter + 4,
+                    paddingTop: gap * 1.4,
+                    paddingBottom: gap * 2.2,
+                  },
+                ]}>
+              <View style={[styles.inputWrap, { marginBottom: gap, minHeight: socialBtnHeight }]}>
+                <MaterialIcons name="email" size={18} color="#64748b" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { paddingVertical: controlPadV }]}
+                  placeholder="E-mail"
+                  placeholderTextColor="#94a3b8"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
                 />
-              ) : (
+              </View>
+              <View
+                style={[
+                  styles.inputWrap,
+                  { marginBottom: Math.max(gap, 14), minHeight: socialBtnHeight },
+                ]}>
+                <MaterialIcons name="lock-outline" size={18} color="#64748b" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { paddingVertical: controlPadV }]}
+                  placeholder="Senha"
+                  placeholderTextColor="#94a3b8"
+                  value={senha}
+                  onChangeText={setSenha}
+                  secureTextEntry
+                  editable={!loading}
+                />
+              </View>
+
+              <View style={[styles.rowBetween, { marginBottom: Math.max(gap, 14) }]}>
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setRemember((v) => !v)}
+                  disabled={loading}>
+                  <View style={[styles.checkbox, remember && styles.checkboxOn]}>
+                    {remember ? <View style={styles.checkboxDot} /> : null}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Manter conectado</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.forgotWrapInline}
+                  onPress={() => router.push('/(auth)/forgot-password' as any)}
+                  disabled={loading}>
+                  <Text style={styles.forgotText}>Esqueci minha senha</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  { paddingVertical: controlPadV, minHeight: socialBtnHeight },
+                  loading && styles.disabled,
+                ]}
+                onPress={handleLogin}
+                disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Entrar</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={[styles.dividerRow, { marginVertical: 10 }]}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>ou entre com</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.socialStack}>
+                {googleConfigured ? (
+                  <GoogleOAuthButton
+                    socialBusy={socialBusy}
+                    setSocialBusy={setSocialBusy}
+                    persistSession={persistSession}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.socialFullBtn, styles.socialGoogle, styles.socialOff]}
+                    disabled>
+                    <View style={[styles.socialIconWrap, styles.socialIconWrapGoogle]}>
+                      <Image source={GOOGLE_G_LOGO} style={styles.googleGLogo} />
+                    </View>
+                    <Text style={[styles.socialFullLabel, styles.socialFullLabelGoogle]}>
+                      Continuar com o Google
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   style={[
-                    styles.socialBtn,
-                    width < 360 && styles.socialBtnFull,
-                    styles.socialOff,
+                    styles.socialFullBtn,
+                    styles.socialFacebook,
+                    (!fbConfigured || socialBusy || fbIsLoading) && styles.socialOff,
                   ]}
-                  disabled>
-                  <FontAwesome5 name="google" size={20} color="#4285F4" />
-                  <Text style={styles.socialLabel}>Google</Text>
+                  disabled={!fbConfigured || !!socialBusy || fbIsLoading}
+                  onPress={() => signInWithFacebook()}>
+                  <View style={styles.socialIconWrap}>
+                    {fbIsLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <FontAwesome5 name="facebook-f" size={18} color="#fff" />
+                    )}
+                  </View>
+                  <Text style={styles.socialFullLabel}>
+                    {fbIsLoading ? 'Conectando...' : 'Continuar com o Facebook'}
+                  </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.socialFullBtn,
+                    styles.socialInstagram,
+                    (!igConfigured || socialBusy) && styles.socialOff,
+                  ]}
+                  disabled={!igConfigured || !!socialBusy}
+                  onPress={handleInstagram}>
+                  <View style={styles.socialIconWrap}>
+                    {socialBusy === 'instagram' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <FontAwesome5 name="instagram" size={18} color="#fff" />
+                    )}
+                  </View>
+                  <Text style={styles.socialFullLabel}>Continuar com o Instagram</Text>
+                </TouchableOpacity>
+
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity
+                      style={[
+                        styles.socialFullBtn,
+                        styles.socialApple,
+                        !!socialBusy && styles.socialOff,
+                      ]}
+                      disabled={!!socialBusy}
+                      onPress={() => Alert.alert('Apple', 'Login com Apple em breve.')}>
+                      <View style={styles.socialIconWrap}>
+                        <FontAwesome5 name="apple" size={18} color="#fff" />
+                      </View>
+                      <Text style={styles.socialFullLabel}>Continuar com a Apple</Text>
+                    </TouchableOpacity>
+                  )}
+              </View>
+
+              {!googleConfigured && (
+                <Text style={styles.hint}>
+                  Google: defina EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (e no Android, opcionalmente
+                  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID + SHA-1 no Google Cloud)
+                </Text>
               )}
+              {!fbConfigured && (
+                <Text style={styles.hint}>Facebook: defina EXPO_PUBLIC_FACEBOOK_APP_ID</Text>
+              )}
+              {!igConfigured && (
+                <Text style={styles.hint}>Instagram: defina EXPO_PUBLIC_INSTAGRAM_APP_ID</Text>
+              )}
+
+              <Text style={styles.terms}>
+                Ao continuar, você concorda com os Termos e a Política de Privacidade do Conectfy.
+              </Text>
+
               <TouchableOpacity
-                style={[
-                  styles.socialBtn,
-                  width < 360 && styles.socialBtnFull,
-                  (!fbConfigured || socialBusy || fbIsLoading) && styles.socialOff,
-                ]}
-                disabled={!fbConfigured || !!socialBusy || fbIsLoading}
-                onPress={() => signInWithFacebook()}>
-                {fbIsLoading ? (
-                  <ActivityIndicator />
-                ) : (
-                  <FontAwesome5 name="facebook-f" size={20} color="#1877F2" />
-                )}
-                <Text style={styles.socialLabel}>{fbIsLoading ? 'Conectando...' : 'Facebook'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.socialBtn,
-                  width < 360 && styles.socialBtnFull,
-                  (!igConfigured || socialBusy) && styles.socialOff,
-                ]}
-                disabled={!igConfigured || !!socialBusy}
-                onPress={handleInstagram}>
-                {socialBusy === 'instagram' ? (
-                  <ActivityIndicator />
-                ) : (
-                  <MaterialIcons name="photo-camera" size={22} color="#E1306C" />
-                )}
-                <Text style={styles.socialLabel}>Instagram</Text>
+                style={styles.registerWrap}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(auth)/register' as any,
+                    params: { email: email.trim().toLowerCase() },
+                  })
+                }
+                disabled={loading}>
+                <Text style={styles.registerText}>Não tem conta? Cadastre-se</Text>
               </TouchableOpacity>
             </View>
-            {!googleConfigured && (
-              <Text style={styles.hint}>
-                Google: defina EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (e no Android, opcionalmente
-                EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID + SHA-1 no Google Cloud)
-              </Text>
-            )}
-            {!fbConfigured && (
-              <Text style={styles.hint}>Facebook: defina EXPO_PUBLIC_FACEBOOK_APP_ID</Text>
-            )}
-            {!igConfigured && (
-              <Text style={styles.hint}>Instagram: defina EXPO_PUBLIC_INSTAGRAM_APP_ID</Text>
-            )}
+            </View>
 
-            <Text style={styles.terms}>
-              Ao continuar, você concorda com os Termos e a Política de Privacidade do Conectfy.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.registerWrap}
-              onPress={() =>
-                router.push({
-                  pathname: '/(auth)/register' as any,
-                  params: { email: email.trim().toLowerCase() },
-                })
-              }
-              disabled={loading}>
-              <Text style={styles.registerText}>Não tem conta? Cadastre-se</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            <View
+              style={[
+                styles.siteFooter,
+                {
+                  paddingBottom: insets.bottom + 20,
+                  marginTop: isSmall ? gap : 'auto',
+                },
+              ]}>
+              <TouchableOpacity
+                onPress={() => router.replace('/(auth)/welcome' as any)}
+                activeOpacity={0.85}
+                style={styles.footerTap}>
+                <Text style={styles.footerBrand}>Conectfy</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, paddingBottom: 32 },
+  safe: { flex: 1, backgroundColor: BRAND },
+  shell: { flex: 1, backgroundColor: BG },
+  scrollOuter: { backgroundColor: BG },
+  scroll: { flexGrow: 1 },
+  grow: { flex: 1 },
+  topBounceBg: {
+    position: 'absolute',
+    top: -1000,
+    left: 0,
+    right: 0,
+    height: 1000,
+    backgroundColor: BRAND,
+  },
   hero: {
     backgroundColor: BRAND,
     paddingHorizontal: 20,
@@ -354,10 +486,10 @@ const styles = StyleSheet.create({
   logoLetter: { color: '#fff', fontSize: 24, fontWeight: '900' },
   brandText: { color: '#fff', fontSize: 28, fontWeight: '800' },
   heroSubtitle: {
-    color: 'rgba(15, 23, 42, 0.92)',
+    color: 'rgba(255,255,255,0.92)',
     fontSize: 15,
     fontWeight: '600',
-    opacity: 0.9,
+    opacity: 0.95,
     textAlign: 'center',
   },
   card: {
@@ -367,23 +499,32 @@ const styles = StyleSheet.create({
     marginTop: -16,
     backgroundColor: '#fff',
     borderRadius: 18,
-    paddingVertical: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 20,
+    paddingBottom: 40,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  input: {
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 48,
     borderRadius: 12,
-    fontSize: 16,
     backgroundColor: '#f8fafc',
     marginBottom: 12,
+    paddingHorizontal: 12,
+    minHeight: 50,
+  },
+  inputIcon: { marginRight: 10 },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
     color: INK,
   },
   primaryBtn: {
@@ -406,7 +547,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   forgotWrapInline: { paddingVertical: 6, paddingHorizontal: 6, marginRight: -6 },
   forgotText: { color: PRIMARY, fontWeight: '700', fontSize: 14 },
@@ -437,39 +578,59 @@ const styles = StyleSheet.create({
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#e2e8f0' },
   dividerText: { color: MUTED, fontSize: 12, fontWeight: '700' },
-  socialRow: {
+  socialStack: { gap: 12 },
+  socialFullBtn: {
+    position: 'relative',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  socialRowStack: {
-    flexDirection: 'column',
-  },
-  socialBtn: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    minHeight: 72,
+    height: 52,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: PRIMARY,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 6,
+    borderColor: 'transparent',
     shadowColor: '#000',
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  socialBtnFull: {
-    width: '100%',
-    flex: 0,
-    minHeight: 52,
-    flexDirection: 'row',
+  socialGoogle: {
+    backgroundColor: '#fff',
+    borderColor: GOOGLE_BORDER,
+  },
+  socialFacebook: {
+    backgroundColor: SOCIAL_FB,
+  },
+  socialInstagram: {
+    backgroundColor: SOCIAL_IG,
+  },
+  socialApple: {
+    backgroundColor: '#000',
+  },
+  socialIconWrap: {
+    position: 'absolute',
+    left: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  socialIconWrapGoogle: {
+    backgroundColor: 'transparent',
+  },
+  googleGLogo: {
+    width: 18,
+    height: 18,
+    resizeMode: 'contain',
   },
   socialOff: { opacity: 0.45 },
-  socialLabel: { fontSize: 11, fontWeight: '800', color: '#334155' },
+  socialFullLabel: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  socialFullLabelGoogle: {
+    color: GOOGLE_TEXT,
+  },
   hint: { fontSize: 10, color: MUTED, marginTop: 6, textAlign: 'center' },
   terms: {
     marginTop: 14,
@@ -480,4 +641,24 @@ const styles = StyleSheet.create({
   },
   registerWrap: { marginTop: 22, alignItems: 'center' },
   registerText: { color: PRIMARY, fontWeight: '700', fontSize: 15 },
+  siteFooter: {
+    marginTop: 'auto',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: SLATE_200,
+    backgroundColor: BG,
+    paddingTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerTap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  footerBrand: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: BRAND,
+  },
 });

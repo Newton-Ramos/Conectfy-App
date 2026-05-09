@@ -8,12 +8,24 @@ import {
   FlatList,
   SectionList,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usersApi, type ContactUser } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
-import { PREDEFINED_CIRCLE_KEYS } from '@/constants/circles';
+import { PREDEFINED_CIRCLE_KEYS, CIRCLE_BADGE_BG } from '@/constants/circles';
+
+const BRAND = '#2c9a81';
+const BG = '#f8fafc';
+const INK = '#1e293b';
+const MUTED = '#64748b';
+const SEARCH_BG = '#f1f5f9';
+
+function badgeColorForCircle(tag: string): string {
+  return CIRCLE_BADGE_BG[tag] ?? '#64748b';
+}
 
 export default function ContactsScreen() {
   const params = useLocalSearchParams<{ tag?: string; groupByCircle?: string }>();
@@ -23,6 +35,7 @@ export default function ContactsScreen() {
     groupRaw === '1' ||
     groupRaw === 'true' ||
     (Array.isArray(groupRaw) && (groupRaw[0] === '1' || groupRaw[0] === 'true'));
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<ContactUser[]>([]);
@@ -85,93 +98,122 @@ export default function ContactsScreen() {
           pathname: '/(tabs)/edit-person' as any,
           params: { userId: String(item.id) },
         })
-      }>
+      }
+      activeOpacity={0.85}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{(item.nome || '?').charAt(0).toUpperCase()}</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.nome || 'Usuário'}</Text>
-        <Text style={styles.email}>{item.email}</Text>
-        {(item.tags?.length ?? 0) > 0 && (
-          <Text style={styles.tags}>{item.tags!.join(' · ')}</Text>
-        )}
-        {item.is_blocked && <Text style={styles.blocked}>Bloqueado</Text>}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.nome || 'Usuário'}
+        </Text>
+        <Text style={styles.email} numberOfLines={1}>
+          {item.email}
+        </Text>
+        {(item.tags?.length ?? 0) > 0 ? (
+          <View style={styles.badgeRow}>
+            {(item.tags ?? []).map((tag) => (
+              <View key={tag} style={[styles.circleBadge, { backgroundColor: badgeColorForCircle(tag) }]}>
+                <Text style={styles.circleBadgeText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {item.is_blocked ? <Text style={styles.blocked}>Bloqueado</Text> : null}
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <MaterialIcons name="chevron-right" size={22} color={MUTED} />
     </TouchableOpacity>
   );
 
+  const listEmpty = (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyIconCircle}>
+        <MaterialIcons name="person-add-alt-1" size={40} color={BRAND} />
+      </View>
+      <Text style={styles.emptyTitle}>Você ainda não possui contatos cadastrados.</Text>
+      <Text style={styles.emptySub}>Toque no + para começar.</Text>
+    </View>
+  );
+
+  const filteredEmpty = filtered.length === 0 && users.length > 0;
+
+  const sectionEmpty =
+    users.length === 0 ? (
+      listEmpty
+    ) : (
+      <View style={styles.emptyWrap}>
+        <MaterialIcons name="groups" size={36} color={MUTED} />
+        <Text style={styles.emptyTitle}>Nenhum contato classificado nos círculos.</Text>
+        <Text style={styles.emptySub}>Atribua tags ao editar um contato.</Text>
+      </View>
+    );
+
   return (
     <View style={styles.container}>
-      <View style={styles.topbar}>
-        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()}>
-          <MaterialIcons name="chevron-left" size={26} color="#111" />
+      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.topbarIcon} onPress={() => router.back()} hitSlop={12}>
+          <MaterialIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topbarTitle} numberOfLines={1}>
           {groupByCircle ? 'Contatos por círculo' : tagParam ? `Contatos · ${tagParam}` : 'Contatos'}
         </Text>
-        <TouchableOpacity style={styles.topbarIcon} onPress={openAdd}>
-          <MaterialIcons name="add-circle-outline" size={22} color="#111" />
+        <TouchableOpacity style={styles.topbarIcon} onPress={openAdd} hitSlop={12}>
+          <MaterialIcons name="add-circle-outline" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchArea}>
         <View style={styles.search}>
-          <MaterialIcons name="search" size={20} color="#828282" />
+          <MaterialIcons name="search" size={22} color={MUTED} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar"
-            placeholderTextColor="#828282"
+            placeholderTextColor={MUTED}
             value={query}
             onChangeText={setQuery}
             autoCapitalize="none"
           />
         </View>
-        <View style={styles.filters}>
-          <TouchableOpacity style={styles.filterBtn}>
-            <Text style={styles.filterText}>Filtrar</Text>
-            <MaterialIcons name="keyboard-arrow-down" size={18} color="#2c9a81" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterBtn}>
-            <Text style={styles.filterText}>Classificar</Text>
-            <MaterialIcons name="keyboard-arrow-down" size={18} color="#2c9a81" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator />
+          <ActivityIndicator color={BRAND} size="large" />
           <Text style={styles.centerText}>Carregando...</Text>
         </View>
       ) : groupByCircle && sections ? (
         <SectionList
           sections={sections}
-          keyExtractor={(item, index) => `${index}-${item.id}`}
+          keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => renderItem({ item })}
           renderSectionHeader={({ section: { title } }) => (
             <View style={styles.sectionHead}>
               <Text style={styles.sectionHeadText}>{title}</Text>
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={[
+            styles.listPad,
+            sections.length === 0 ? styles.flexGrow : null,
+          ]}
           stickySectionHeadersEnabled={false}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.centerText}>Nenhum contato classificado nos círculos.</Text>
-            </View>
-          }
+          ListEmptyComponent={sectionEmpty}
         />
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(u) => String(u.id)}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={[styles.listPad, filtered.length === 0 ? styles.flexGrow : null]}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.centerText}>Nenhum contato encontrado.</Text>
-            </View>
+            users.length === 0 ? (
+              listEmpty
+            ) : filteredEmpty ? (
+              <View style={styles.emptyWrap}>
+                <MaterialIcons name="search-off" size={36} color={MUTED} />
+                <Text style={styles.emptyTitle}>Nenhum resultado</Text>
+                <Text style={styles.emptySub}>Tente outro termo de busca.</Text>
+              </View>
+            ) : null
           }
         />
       )}
@@ -179,78 +221,108 @@ export default function ContactsScreen() {
   );
 }
 
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  android: { elevation: 3 },
+  default: {},
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#c4c4c4' },
+  container: { flex: 1, backgroundColor: BG },
   topbar: {
-    paddingTop: 44,
     paddingHorizontal: 12,
-    height: 94,
-    backgroundColor: '#2c9a81',
+    paddingBottom: 14,
+    backgroundColor: BRAND,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+      },
+      android: { elevation: 4 },
+    }),
   },
-  topbarIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  topbarTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
-  searchArea: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
+  topbarIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  topbarTitle: { fontSize: 18, fontWeight: '800', color: '#fff', flex: 1, textAlign: 'center', paddingHorizontal: 4 },
+  searchArea: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   search: {
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: 20,
+    backgroundColor: SEARCH_BG,
+    paddingHorizontal: 14,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
-  searchInput: { flex: 1, height: 40, fontSize: 16, color: '#111' },
-  filters: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  filterBtn: {
-    borderWidth: 1,
-    borderColor: '#2c9a81',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'transparent',
-  },
-  filterText: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
+  searchInput: { flex: 1, fontSize: 16, color: INK, paddingVertical: Platform.OS === 'ios' ? 10 : 8 },
+  listPad: { paddingBottom: 28 },
+  flexGrow: { flexGrow: 1 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#111',
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     marginBottom: 10,
     marginHorizontal: 16,
-    backgroundColor: '#dadada',
+    backgroundColor: '#fff',
+    ...cardShadow,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#e6f6fb',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(44,154,129,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#0a7ea4', fontWeight: '800', fontSize: 18 },
-  name: { fontWeight: '700', color: '#111' },
-  email: { color: '#666', marginTop: 2, fontSize: 12 },
-  tags: { color: '#2c9a81', marginTop: 4, fontSize: 12, fontWeight: '600' },
-  blocked: { color: '#c44', marginTop: 4, fontSize: 12, fontWeight: '700' },
-  chevron: { color: '#999', fontSize: 24, paddingHorizontal: 4 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-  centerText: { color: '#666' },
-  sectionHead: {
-    backgroundColor: '#b8b8b8',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginTop: 6,
+  avatarText: { color: BRAND, fontWeight: '900', fontSize: 18 },
+  name: { fontWeight: '800', color: INK, fontSize: 16 },
+  email: { color: MUTED, marginTop: 2, fontSize: 13 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  circleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  sectionHeadText: { fontSize: 15, fontWeight: '800', color: '#111' },
+  circleBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  blocked: { color: '#dc2626', marginTop: 6, fontSize: 12, fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
+  centerText: { color: MUTED },
+  sectionHead: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  sectionHeadText: { fontSize: 13, fontWeight: '800', color: MUTED, letterSpacing: 0.6 },
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+    gap: 10,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(44,154,129,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: INK, textAlign: 'center' },
+  emptySub: { fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 20 },
 });

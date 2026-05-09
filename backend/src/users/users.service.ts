@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { User } from './user.entity';
@@ -170,25 +170,30 @@ export class UsersService {
 
   /** Lista contatos com tags / bloqueio (visão do usuário logado) */
   async findContactsForViewer(viewerId: number) {
-    const users = await this.repo.find();
-    const contacts = await this.contactRepo.find({
+    const rows = await this.contactRepo.find({
       where: { user_id: viewerId },
     });
-    const byContactId = new Map(contacts.map((c) => [c.contact_id, c]));
+    const links = rows.filter((r) => r.contact_id !== r.user_id);
+    if (links.length === 0) return [];
 
-    return users
-      .filter((u) => u.id !== viewerId)
-      .map((u) => {
-        const { senha, ...rest } = u;
-        const meta = byContactId.get(u.id);
-        return {
-          ...rest,
-          tags: meta?.tags ?? [],
-          is_blocked: meta?.is_blocked ?? false,
-          contactNote: meta?.nota ?? null,
-          contactPhone: meta?.telefone ?? null,
-        };
-      });
+    const ids = links.map((r) => r.contact_id);
+    const users = await this.repo.find({
+      where: { id: In(ids) },
+    });
+    const byContactId = new Map(links.map((c) => [c.contact_id, c]));
+    users.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+
+    return users.map((u) => {
+      const { senha, ...rest } = u;
+      const meta = byContactId.get(u.id)!;
+      return {
+        ...rest,
+        tags: meta?.tags ?? [],
+        is_blocked: meta?.is_blocked ?? false,
+        contactNote: meta?.nota ?? null,
+        contactPhone: meta?.telefone ?? null,
+      };
+    });
   }
 
   async findOne(id: number) {
