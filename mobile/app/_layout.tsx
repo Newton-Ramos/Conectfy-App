@@ -6,10 +6,13 @@ import {
   useSegments,
 } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SplashOverlay } from '@/components/Splash';
+import { SPLASH_MIN_MS } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -51,6 +54,38 @@ function AuthNavigationSync() {
   return null;
 }
 
+function SplashGate({ children }: { children: ReactNode }) {
+  const { isReady } = useAuth();
+  const mountedAt = useRef(Date.now());
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const [renderOverlay, setRenderOverlay] = useState(true);
+
+  /* Native splash some assim que o overlay JS monta (evita “splash dupla” estendida). */
+  useLayoutEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+    const elapsed = Date.now() - mountedAt.current;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+    const t = setTimeout(() => setOverlayVisible(false), remaining);
+    return () => clearTimeout(t);
+  }, [isReady]);
+
+  return (
+    <>
+      {children}
+      {renderOverlay ? (
+        <SplashOverlay
+          visible={overlayVisible}
+          onDismissComplete={() => setRenderOverlay(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 function RootStack() {
   const colorScheme = useColorScheme();
 
@@ -72,7 +107,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <RootStack />
+          <SplashGate>
+            <RootStack />
+          </SplashGate>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
