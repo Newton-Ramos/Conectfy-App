@@ -30,6 +30,12 @@
     "react-native-svg": "15.15.3",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
-    "typeorm": "^0.3.28"
-  }
+    "typeorm": "^0.3.28",
+    "expo": "~55.0.23",
+    "react": "19.2.0",
+    "react-native": "0.83.6"
+  },
+  "name": "Conectfy",
+  "version": "1.0.0",
+  "scripts": {}
 }
