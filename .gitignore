@@ -1,16 +1,54 @@
-# Ignorar pastas de dependências
+# Dependências
 node_modules/
-.expo/
+
+# Build / artefatos compilados
 dist/
 build/
+*.tsbuildinfo
 
-# Ignorar o Frontend (conforme solicitado)
-frontend/
+# Expo / React Native
+.expo/
+.metro-health-check*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
 
-# Ignorar arquivos de ambiente (segurança)
+# Variáveis de ambiente (nunca commitar segredos)
 .env
-.env.local
+.env.*
+!.env.example
 
-# Arquivos de sistema
+# Logs e caches de ferramentas
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+.cache/
+.turbo/
+
+# Testes / cobertura
+coverage/
+.nyc_output/
+
+# IDE / editor (JetBrains). Para não versionar também VS Code: descomente a linha abaixo.
+.idea/
+# .vscode/
+
+# SO
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Uploads locais do backend (mídias de usuários em dev)
+backend/uploads/
+
+# Nativos gerados pelo Expo prebuild (descomente se não for versionar)
+# mobile/android/
+# mobile/ios/
+
+# Pastas locais do projeto (ajuste se algo aqui deveria versionar)
+frontend/
