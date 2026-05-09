@@ -18,11 +18,37 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
+import { existsSync, mkdirSync } from 'fs';
+import { MessageMediaType } from './entities/message.entity';
 import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageHistoryQueryDto } from './dto/message-history-query.dto';
 import { AddReactionDto } from './dto/reaction.dto';
+
+function uploadSubdir(mimetype: string): string {
+  if (mimetype.startsWith('image/')) return 'images';
+  if (mimetype.startsWith('video/')) return 'videos';
+  if (
+    mimetype === 'application/pdf' ||
+    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(mimetype)
+  ) {
+    return 'documents';
+  }
+  return 'files';
+}
+
+function inferMediaTypeFromMime(mimetype: string): MessageMediaType {
+  if (mimetype.startsWith('image/')) return MessageMediaType.IMAGE;
+  if (mimetype.startsWith('video/')) return MessageMediaType.VIDEO;
+  if (
+    mimetype === 'application/pdf' ||
+    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(mimetype)
+  ) {
+    return MessageMediaType.DOCUMENT;
+  }
+  return MessageMediaType.FILE;
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('messages')
@@ -73,6 +99,44 @@ export class MessagesController {
     return {
       mediaUrl: `/uploads/voice/${file.filename}`,
       filename: file.filename,
+    };
+  }
+
+  /** Upload genérico: imagem, vídeo, PDF, documentos Office, outros arquivos (multipart campo `file`) */
+  @Post('upload-media')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, file, cb) => {
+          const sub = uploadSubdir(file.mimetype);
+          const dir = join(process.cwd(), 'uploads', sub);
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+          const ext = extname(file.originalname || '') || '';
+          cb(null, `${randomUUID()}${ext}`);
+        },
+      }),
+      limits: { fileSize: 48 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (/\.(exe|bat|cmd|msi|scr)$/i.test(file.originalname || '')) {
+          cb(new Error('Tipo de arquivo não permitido'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  uploadMedia(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Arquivo ausente');
+    const sub = uploadSubdir(file.mimetype);
+    const mt = inferMediaTypeFromMime(file.mimetype);
+    return {
+      mediaUrl: `/uploads/${sub}/${file.filename}`,
+      filename: file.originalname || file.filename,
+      mediaType: mt,
+      size: file.size,
     };
   }
 
