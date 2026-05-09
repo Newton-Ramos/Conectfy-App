@@ -1,18 +1,19 @@
 import 'dotenv/config';
 
-export default ({ config }: { config: any }) => ({
+/**
+ * Mescla com o que veio do `app.json` (`config` já é o objeto Expo mesclado).
+ * Retorno “flat” (sem chave `expo`), como na documentação do Expo — assim o
+ * prebuild e o expo-doctor reconhecem que o estático foi aplicado.
+ */
+export default ({ config }: { config: Record<string, unknown> }) => ({
   ...config,
-  expo: {
-    ...(config.expo ?? {}),
-    plugins: [
-      ...(config.expo?.plugins ?? config.plugins ?? []),
-      '@react-native-community/datetimepicker',
-    ],
-    // preserva o scheme do app.json (ou define um padrão seguro)
-    scheme: (config.expo?.scheme ?? config.scheme ?? 'mobile') as string,
-    extra: {
-      ...(config.expo?.extra ?? config.extra ?? {}),
-      apiUrl: process.env.EXPO_PUBLIC_API_URL,
-    },
+  plugins: [
+    ...((config.plugins as unknown[] | undefined) ?? []),
+    '@react-native-community/datetimepicker',
+  ],
+  scheme: (config.scheme as string | undefined) ?? 'mobile',
+  extra: {
+    ...((config.extra as Record<string, unknown> | undefined) ?? {}),
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
   },
 });

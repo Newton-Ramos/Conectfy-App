@@ -16,7 +16,7 @@
       }
     },
     "android": {
-      "package": "com.newton.conectfy",
+      "package": "com.newtonramos.mobile",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -36,6 +36,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-web-browser",
       [
         "expo-splash-screen",
         {

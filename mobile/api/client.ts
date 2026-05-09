@@ -266,6 +266,13 @@ export const getUserById = (id: number) => api.get(`/users/${id}`);
 
 export type ChatReaction = { userId: number; emoji: string };
 
+/** Estado apenas no cliente (mensagens otimistas / upload) */
+export type ClientUploadState = {
+  phase: 'compressing' | 'uploading' | 'sending' | 'failed';
+  progress?: number;
+  localUri?: string;
+};
+
 export type ChatMessage = {
   id: number;
   senderId: number;
@@ -282,6 +289,8 @@ export type ChatMessage = {
   mediaUrl?: string | null;
   mediaDurationSec?: number | null;
   reactions?: ChatReaction[];
+  /** Overlay UX upload — não vem da API */
+  clientUpload?: ClientUploadState;
 };
 
 export type ChatHistoryPage = {
@@ -340,6 +349,39 @@ export const messagesApi = {
     } as unknown as Blob);
     return api.post<{ mediaUrl: string; filename: string }>('/messages/upload-voice', form, {
       timeout: 90000,
+    });
+  },
+
+  uploadMedia: (
+    fileUri: string,
+    filename: string,
+    mimeType: string,
+    opts?: {
+      signal?: AbortSignal;
+      onProgress?: (percent: number) => void;
+    },
+  ) => {
+    const form = new FormData();
+    form.append('file', {
+      uri: fileUri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob);
+    return api.post<{
+      mediaUrl: string;
+      filename: string;
+      mediaType: string;
+      size: number;
+    }>('/messages/upload-media', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600_000,
+      signal: opts?.signal,
+      onUploadProgress: (ev) => {
+        const total = ev.total ?? 0;
+        if (total > 0 && opts?.onProgress) {
+          opts.onProgress(Math.min(100, Math.round((ev.loaded / total) * 100)));
+        }
+      },
     });
   },
 
