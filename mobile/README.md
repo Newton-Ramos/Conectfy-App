@@ -1,50 +1,106 @@
-# Welcome to your Expo app 👋
+# Conectfy — Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App **Expo** (React Native) com **expo-router**, voltado a conversas, contatos, círculos e fluxos de autenticação contra o backend NestJS do monorepositório.
 
-## Get started
+---
 
-1. Install dependencies
+## Pré-requisitos
 
-   ```bash
-   npm install
-   ```
+- Node.js 20+
+- Conta [Expo](https://expo.dev) (opcional, para builds na nuvem)
+- **Backend** rodando e acessível a partir do dispositivo ou emulador (ver secção [API](#api-base-url))
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Instalação
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Na pasta `mobile/`:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## Configuração da API (`EXPO_PUBLIC_API_URL`)
 
-To learn more about developing your project with Expo, look at the following resources:
+O cliente HTTP resolve a URL em `api/client.ts`. Regra prática:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+| Onde roda o app | O que usar |
+|-----------------|------------|
+| **Android Emulator** | Deixe **sem** `EXPO_PUBLIC_API_URL` ou use `http://10.0.2.2:3333` (mapeia para o `localhost` da máquina host). |
+| **iOS Simulator** | `http://localhost:3333` costuma funcionar. |
+| **Celular físico (mesma Wi‑Fi)** | IP da sua máquina na rede local, ex.: `http://192.168.0.15:3333` — **não** use `localhost` no aparelho. |
 
-## Join the community
+Crie um arquivo **`.env`** na pasta `mobile/` (ou exporte no shell antes do `expo start`):
 
-Join our community of developers creating universal apps.
+```env
+EXPO_PUBLIC_API_URL=http://192.168.0.15:3333
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Reinicie o bundler após alterar variáveis (`Ctrl+C` e `npx expo start` de novo).
+
+Variáveis **opcionais** (login social — só se for usar):
+
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+- `EXPO_PUBLIC_FACEBOOK_APP_ID`
+- `EXPO_PUBLIC_INSTAGRAM_APP_ID`
+
+---
+
+## Executar o projeto
+
+```bash
+npm start
+# ou
+npx expo start
+```
+
+Comandos úteis:
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm start` | Metro + QR Code / menu interativo |
+| `npm run android` | Build/run nativo Android (requer ambiente Android configurado) |
+| `npm run ios` | Build/run nativo iOS (macOS + Xcode) |
+| `npm run typecheck` | `tsc --noEmit` |
+
+---
+
+## Ver o app no celular
+
+1. Suba o **backend** (`npm run start:dev` na pasta `backend`).
+2. Ajuste **`EXPO_PUBLIC_API_URL`** se for **dispositivo físico** (IP do PC).
+3. Na pasta `mobile`, rode `npx expo start`.
+4. No Android/iOS:
+   - **Expo Go**: escaneie o QR Code (mesma rede Wi‑Fi que o computador, no modo LAN).
+   - **Tunnel** (rede complicada): `npx expo start --tunnel` (pode ser mais lento).
+
+Confira no console do app a linha **`API_URL`** (log do cliente) para garantir que aponta para o servidor certo.
+
+---
+
+## Estrutura relevante
+
+- `app/` — rotas file-based (auth, abas, chat `[peerId]`, etc.)
+- `api/client.ts` — Axios + URL base
+- `app.config.ts` — injeta `extra.apiUrl` a partir do ambiente
+
+---
+
+## Solução de problemas
+
+| Sintoma | O que fazer |
+|---------|-------------|
+| “Sem conexão com o servidor” | Backend ligado; firewall permitindo porta 3333; URL correta no `.env` do mobile |
+| Funciona no emulador e não no celular | Definir IP da máquina em `EXPO_PUBLIC_API_URL` |
+| Login/cadastro ok mas chat falha | WebSocket precisa do mesmo host alcançável; confira API e rede |
+
+---
+
+## Referência
+
+- [Expo documentation](https://docs.expo.dev/)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- Backend: [`../backend/README.md`](../backend/README.md)
