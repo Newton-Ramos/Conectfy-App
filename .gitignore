@@ -29,6 +29,11 @@ yarn-error.log*
 *.log
 .cache/
 .turbo/
+.eslintcache
+
+# Ficheiros temporários de editores
+*.swp
+*~
 
 # Testes / cobertura
 coverage/
