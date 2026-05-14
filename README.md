@@ -1,8 +1,28 @@
 # Conectfy
 
-Monorepo com **backend NestJS** (API REST, JWT, Socket.IO, TypeORM, PostgreSQL) e **aplicativo mobile Expo** (React Native, expo-router) para chat em tempo real e funcionalidades sociais.
+[![API](https://img.shields.io/badge/API-NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com)
+[![Mobile](https://img.shields.io/badge/Mobile-Expo-000020?logo=expo&logoColor=white)](https://expo.dev)
+[![Database](https://img.shields.io/badge/DB-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Deploy](https://img.shields.io/badge/Deploy-Render-000000?logo=render&logoColor=white)](https://render.com)
 
-Documentação pensada para **desenvolvimento local**, **deploy em produção (Render)** e **entrega acadêmica**.
+Monorepo full-stack: **NestJS** (`backend/`) + **Expo / React Native** (`mobile/`). API REST, JWT, Socket.IO, TypeORM e PostgreSQL.
+
+---
+
+## Visão geral
+
+Cliente mobile consome a API via HTTP; eventos em tempo real usam **Socket.IO**. Dados persistem em **PostgreSQL**. Deploy da API em **Render**; o app resolve a base URL com **`EXPO_PUBLIC_API_URL`**.
+
+---
+
+## Features
+
+- Autenticação **JWT** (login, cadastro por fluxo de email e recuperação de senha)
+- **OAuth** Google, Facebook e Instagram (quando variáveis estão configuradas)
+- **Chat** em tempo real (**Socket.IO**)
+- **Mensagens** com suporte a mídia (ex.: voz) e uploads servidos em `/uploads/`
+- **Contatos** e **círculos** (`users`, `circles`)
+- **Notificações** (`notifications`)
 
 ---
 
@@ -10,113 +30,167 @@ Documentação pensada para **desenvolvimento local**, **deploy em produção (R
 
 | Camada | Tecnologias |
 |--------|-------------|
-| Backend | NestJS, TypeORM, PostgreSQL, JWT, Socket.IO |
-| Mobile | Expo, React Native, expo-router, Axios, Socket.IO Client |
+| Backend | NestJS, TypeORM, PostgreSQL, JWT, Passport, Socket.IO |
+| Mobile | Expo, React Native, expo-router, Axios, socket.io-client |
+
+---
+
+## Arquitetura
+
+```
+┌─────────────────────┐     HTTP / REST      ┌─────────────────────┐
+│  Expo (React Native)│ ◄──────────────────► │  NestJS API         │
+│  mobile/            │     WebSocket (JWT)  │  backend/           │
+└─────────────────────┘                      └──────────┬──────────┘
+                                                        │ TypeORM
+                                                        ▼
+                                             ┌─────────────────────┐
+                                             │  PostgreSQL         │
+                                             └─────────────────────┘
+```
+
+Fluxo: credenciais → API emite **JWT** → cliente envia `Authorization: Bearer` e conecta ao gateway Socket.IO com o mesmo segredo de verificação no servidor.
 
 ---
 
 ## Estrutura do projeto
 
-| Pasta | Conteúdo |
-|-------|----------|
-| [`backend/`](./backend/) | API NestJS, autenticação, WebSockets, uploads, conexão com PostgreSQL |
-| [`mobile/`](./mobile/) | App Expo (expo-router), variáveis `EXPO_PUBLIC_*`, builds EAS opcionais |
+| Diretório | Função |
+|-----------|--------|
+| [`backend/`](./backend/) | API, variáveis, build `dist/`, deploy Render |
+| [`mobile/`](./mobile/) | App Expo, `EXPO_PUBLIC_*`, builds EAS |
 
-Detalhes de execução, variáveis e deploy: **[`backend/README.md`](./backend/README.md)** e **[`mobile/README.md`](./mobile/README.md)**.
+Referência detalhada: [`backend/README.md`](./backend/README.md) · [`mobile/README.md`](./mobile/README.md)
 
 ---
 
 ## Pré-requisitos
 
-- **Node.js** 20 ou superior (alinhado a `engines` nos `package.json`)
-- **npm**
-- **PostgreSQL** (local ou gerenciado, ex.: Render Postgres)
-- **Expo Go** ou emulador / dispositivo para o app mobile
+- **Node.js** 20+ e **npm** (`engines` nos `package.json` de `backend/` e `mobile/`)
+- **PostgreSQL** (local ou Render Postgres)
+- **Git**
+- Mobile: **Expo Go** e/ou emulador Android (Xcode no macOS para iOS)
 
 ---
 
-## Início rápido (local)
+## Setup local
 
-### 1. Backend
+**Backend**
 
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# Edite .env: DB_* ou DATABASE_URL, JWT_SECRET, etc.
+# Preencher DB / JWT (ver seção Variáveis de ambiente)
 npm run start:dev
 ```
 
-Na primeira vez com banco vazio, o TypeORM pode criar o schema conforme a configuração em `.env` (veja o README do backend). Opcionalmente: `npm run seed`.
-
-### 2. Mobile
+**Mobile**
 
 ```bash
 cd mobile
 npm install
 cp .env.example .env
-# Defina EXPO_PUBLIC_API_URL (IP da máquina na LAN ou 10.0.2.2 no emulador Android)
+# EXPO_PUBLIC_API_URL — ver próxima seção
 npx expo start
 ```
 
-Use **Expo Go** no celular (mesma rede Wi‑Fi) ou **`a`** com emulador Android aberto.
-
-### 3. Conectar mobile ao backend
-
-| Cenário | URL típica em `EXPO_PUBLIC_API_URL` |
-|---------|-------------------------------------|
-| Emulador Android | `http://10.0.2.2:3333` |
-| Celular físico (mesma rede) | `http://<IPv4_DO_PC>:3333` |
-| Backend no Render (produção) | `https://<seu-serviço>.onrender.com` (sem barra final, salvo convenção da API) |
-
-Reinicie o Metro após alterar `.env`.
+API padrão: `http://localhost:3333`. Schema inicial: [`backend/README.md`](./backend/README.md).
 
 ---
 
-## Deploy em produção (visão geral)
+## Comunicação mobile ↔ backend
 
-1. **PostgreSQL** no [Render](https://render.com): criar instância, copiar **Internal Database URL**.
-2. **Web Service** (Node): repositório GitHub, **Root Directory** `backend`, build `npm install && npm run build`, start `npm start`.
-3. Variáveis de ambiente no painel do Web Service: ver tabela no **[`backend/README.md`](./backend/README.md)**.
-4. No **mobile**, apontar `EXPO_PUBLIC_API_URL` para a URL pública `https://...onrender.com` (build EAS ou `.env` conforme fluxo).
+Variável **`EXPO_PUBLIC_API_URL`**: URL base da API (sem path extra, salvo convenção do projeto).
 
-Passo a passo detalhado: **[`backend/README.md`](./backend/README.md#deploy-no-render)**.
+| Cenário | Exemplo |
+|---------|---------|
+| Emulador Android → API no host | `http://10.0.2.2:3333` |
+| Dispositivo físico → API no PC (mesma LAN) | `http://192.168.0.15:3333` |
+| API no Render | `https://<serviço>.onrender.com` |
+
+- Emulador: não usar `localhost` para alcançar o host; usar `10.0.2.2`.  
+- Físico: usar IPv4 da máquina que roda o Nest, não `127.0.0.1` do telefone.  
+- Após editar `.env`: reiniciar Metro (`Ctrl+C` → `npx expo start`).
 
 ---
 
-## Documentação por pasta
+## Deploy (Render + Expo)
 
-| Arquivo | Conteúdo |
+**Render — ordem**
+
+1. Criar **PostgreSQL** → **Available** → copiar **Internal Database URL** → mapear para **`DATABASE_URL`** no Web Service.  
+2. Criar **Web Service** (Node), repo GitHub, **Root Directory:** `backend`.  
+3. **Environment:** `NODE_ENV`, `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGIN` (e demais do [`.env.example`](./backend/.env.example)).  
+4. **Build:** `npm install && npm run build`  
+5. **Start:** `npm start`  
+6. Validar URL pública `https://<app>.onrender.com`.
+
+`PORT` / `RENDER`: injetados pelo Render.
+
+**Expo**
+
+- **Expo Go + dev:** `EXPO_PUBLIC_API_URL` no `mobile/.env` apontando para a URL HTTPS da API.  
+- **EAS:** mesma variável nos secrets / env do perfil de build (não commitar).
+
+Detalhes (CORS, `TYPEORM_SYNC`, etc.): [`backend/README.md#deploy-no-render`](./backend/README.md#deploy-no-render).
+
+---
+
+## Variáveis de ambiente
+
+| Variável | Onde | Função |
+|----------|------|--------|
+| **`DATABASE_URL`** | `backend/.env` / Render | String Postgres (preferida no Render). Alternativa: `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`. |
+| **`JWT_SECRET`** | `backend/.env` / Render | Segredo HMAC do JWT (≥ 16 caracteres na validação de produção). |
+| **`EXPO_PUBLIC_API_URL`** | `mobile/.env` / EAS | Base URL da API para o bundle Expo. |
+| `NODE_ENV` | Render | `production` na API pública. |
+| `CORS_ORIGIN` | Render | Origens permitidas (lista separada por vírgula). |
+| `TYPEORM_SYNC` | Render | `true` uma vez se não houver migrations e o banco estiver vazio; depois `false`. |
+
+Listas completas: [`backend/.env.example`](./backend/.env.example) · [`mobile/.env.example`](./mobile/.env.example)
+
+---
+
+## Execução rápida
+
+```bash
+# Terminal 1 — API
+cd backend && npm install && cp .env.example .env && npm run start:dev
+
+# Terminal 2 — App (ajuste EXPO_PUBLIC_API_URL antes)
+cd mobile && npm install && cp .env.example .env && npx expo start
+```
+
+Edite os `.env` antes se já tiver Postgres e secrets definidos.
+
+---
+
+## Troubleshooting
+
+| Sintoma | Checagem |
 |---------|----------|
-| [`backend/README.md`](./backend/README.md) | Variáveis, scripts, build de produção, Render, TypeORM |
-| [`mobile/README.md`](./mobile/README.md) | Expo, `EXPO_PUBLIC_API_URL`, Expo Go vs EAS |
+| Falha de rede no app | `EXPO_PUBLIC_API_URL`, HTTP vs HTTPS, firewall, mesma LAN |
+| CORS no browser | `CORS_ORIGIN` contém a origem exata |
+| API cai no boot (Render) | Logs; `NODE_ENV`, `DATABASE_URL`, `JWT_SECRET` |
+| Erro de tabela inexistente | `TYPEORM_SYNC` ou migrations — [backend README](./backend/README.md) |
+
+---
+
+## Status do projeto
+
+| Área | Estado |
+|------|--------|
+| **Backend** | NestJS modular (auth, users, messages, notifications, circles); build `npm run build`; start `npm start`. |
+| **Mobile** | Expo Router; integração API + Socket.IO via `EXPO_PUBLIC_API_URL`. |
+| **Deploy** | Render documentado (Postgres + Web Service); mobile via `.env` / EAS. |
 
 ---
 
 ## Licença
 
-Defina a licença ao publicar (ex.: MIT), conforme instituição ou equipe. O backend está marcado como `UNLICENSED` no `package.json` até essa definição.
+Definir licença ao publicar (ex.: MIT) conforme instituição. O `package.json` do backend pode permanecer `UNLICENSED` até essa decisão.
 
 ---
 
-## CHANGELOG RECENTE (último commit)
-
-> Esta seção descreve **alterações de documentação** aplicadas na revisão dos READMEs (raiz, `backend/` e `mobile/`).
-
-- **README raiz:** reorganizado com foco em monorepo, início rápido, tabela de URLs do mobile, visão geral de deploy no Render e links para os READMEs filhos.
-- **Objetivo:** clareza para correção acadêmica, clone do repositório e encadeamento backend ↔ mobile.
-- **Deploy:** resumo em quatro passos (Postgres, Web Service, variáveis, URL no app) com remissão ao backend para o passo a passo completo.
-- **Comandos:** padronização para `npm install`, `npx expo start` no mobile e referência a `npm run build` / `npm start` no backend em produção.
-
----
-
-## O que mudou na documentação (resumo objetivo)
-
-- Inclusão explícita de **deploy no Render** e da variável **`EXPO_PUBLIC_API_URL`** apontando para **HTTPS** em produção.
-- Separação clara entre **desenvolvimento local** e **produção**.
-- Lista de **pré-requisitos** e **estrutura do repositório** atualizada.
-- Seções **CHANGELOG RECENTE** e este **resumo** para rastreabilidade na entrega acadêmica e no GitHub.
-
----
-
-**README pronto para publicação no GitHub** (conteúdo revisado para produção e entrega; configure licença e repositório remoto conforme sua instituição).
+Documentação complementar: [`backend/README.md`](./backend/README.md) · [`mobile/README.md`](./mobile/README.md)
