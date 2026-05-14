@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule, type TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -13,17 +13,50 @@ import { CirclesModule } from './circles/circles.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env.local', '.env'],
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME || 'conectfy',
-      autoLoadEntities: true, // Isso vai carregar a Entity Message automaticamente
-      synchronize: true, // Isso vai criar a tabela messages agora que o módulo foi importado
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): TypeOrmModuleOptions => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        const nodeEnv = config.get<string>('NODE_ENV');
+        const isProd = nodeEnv === 'production';
+        const syncExplicit = config.get<string>('TYPEORM_SYNC');
+        const synchronize =
+          syncExplicit === 'true' || (!isProd && syncExplicit !== 'false');
+
+        const prodLogging: ('error')[] = ['error'];
+
+        if (databaseUrl?.trim()) {
+          const isLocalUrl =
+            /localhost|127\.0\.0\.1/.test(databaseUrl) || databaseUrl.includes('sslmode=disable');
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            ssl: isLocalUrl ? false : { rejectUnauthorized: false },
+            autoLoadEntities: true,
+            synchronize,
+            logging: isProd ? prodLogging : false,
+          };
+        }
+
+        const host = config.get<string>('DB_HOST', 'localhost').trim();
+        const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+
+        return {
+          type: 'postgres',
+          host,
+          port: parseInt(String(config.get('DB_PORT') ?? '5432'), 10),
+          username: config.get<string>('DB_USERNAME', 'postgres'),
+          password: config.get<string>('DB_PASSWORD'),
+          database: config.get<string>('DB_NAME', 'conectfy'),
+          autoLoadEntities: true,
+          synchronize,
+          logging: isProd ? prodLogging : false,
+          ssl: isLocalHost ? false : { rejectUnauthorized: false },
+        };
+      },
     }),
     UsersModule,
     AuthModule,

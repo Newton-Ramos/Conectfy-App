@@ -42,6 +42,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Cópia manual das variáveis do Render (não é lida pelo Nest — só backup local)
+render-env.local
+
 # temp directory
 .temp
 .tmp

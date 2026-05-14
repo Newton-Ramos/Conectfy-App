@@ -17,16 +17,16 @@ export class FacebookStrategy extends PassportStrategy(
   'facebook',
 ) {
   constructor(configService: ConfigService) {
-    const clientID = configService.get<string>('FACEBOOK_APP_ID');
-    const clientSecret = configService.get<string>('FACEBOOK_APP_SECRET');
+    const clientID = configService.get<string>('FACEBOOK_APP_ID')?.trim();
+    const clientSecret = configService.get<string>('FACEBOOK_APP_SECRET')?.trim();
     if (!clientID || !clientSecret) {
-      throw new Error(
-        'Facebook OAuth não configurado (FACEBOOK_APP_ID/FACEBOOK_APP_SECRET)',
+      console.warn(
+        '[Auth] Facebook OAuth desativado: defina FACEBOOK_APP_ID e FACEBOOK_APP_SECRET para habilitar POST /auth/facebook.',
       );
     }
     super({
-      clientID,
-      clientSecret,
+      clientID: clientID || 'not-configured',
+      clientSecret: clientSecret || 'not-configured',
       fbGraphVersion: 'v17.0',
       profileFields: ['id', 'displayName', 'photos', 'email', 'name'],
     });

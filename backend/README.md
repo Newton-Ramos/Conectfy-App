@@ -1,96 +1,209 @@
 # Conectfy — Backend
 
-Backend NestJS com PostgreSQL, JWT e Socket.IO para o aplicativo Conectfy.
+API **NestJS** com **PostgreSQL** (**TypeORM**), **JWT**, **Socket.IO** e armazenamento de uploads em disco. Destinada ao aplicativo mobile **Conectfy** (Expo).
 
 ---
 
 ## Stack
 
-- NestJS
-- PostgreSQL
-- TypeORM
-- JWT
-- Socket.IO
+- **NestJS** — framework HTTP, módulos, injeção de dependências  
+- **TypeORM** — ORM e migrations/synchronize conforme variáveis  
+- **PostgreSQL** — banco relacional  
+- **JWT** — autenticação stateless  
+- **Socket.IO** — tempo real (chat)
+
+---
+
+## Estrutura (visão geral)
+
+| Área | Descrição |
+|------|-----------|
+| `src/` | Código da aplicação (módulos `auth`, `users`, `messages`, etc.) |
+| `src/config/` | Validação de ambiente em produção, opções de CORS |
+| `dist/` | Saída do build TypeScript (`nest build`) — usada em produção |
+| `uploads/` | Arquivos servidos em `/uploads/` (voz, etc.; em PaaS o disco costuma ser efêmero) |
 
 ---
 
 ## Pré-requisitos
 
-- Node.js 20+
-- PostgreSQL
-- Porta **3333** livre (opcional)
+- **Node.js** 20 ou superior (`engines` no `package.json`: `>=20 <25`)
+- **npm** (não é necessário Yarn)
+- **PostgreSQL** acessível (local ou **Render Postgres**)
+
+A CLI do Nest usada no **build** vem de **`devDependencies`** (`@nestjs/cli`); o script `build` usa **`npx nest build`** (sem Nest instalado globalmente). Em **runtime** apenas **`node dist/main`** (`npm start`).
 
 ---
 
-## Setup
+## Configuração local
 
-### 1. Ambiente
+### 1. Variáveis de ambiente
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Configure `DB_*`, `JWT_SECRET` e demais variáveis necessárias no `.env`. Não commite `.env`. Variáveis opcionais e integrações estão comentadas em `.env.example`.
+Edite **`.env`**. Não commite `.env` (está no `.gitignore`).
 
-### 2. Banco de dados
+**Opção A — URL única (comum no Render):**
 
-Crie manualmente uma base com o **mesmo nome** que `DB_NAME`:
+```env
+DATABASE_URL=postgresql://usuario:senha@host:5432/nome_do_banco
+```
+
+**Opção B — variáveis separadas (desenvolvimento local típico):**
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=sua_senha
+DB_NAME=conectfy
+```
+
+Outras variáveis (OAuth, SMTP, etc.) estão comentadas em **`.env.example`**.
+
+### 2. Banco de dados (local)
+
+Se não usar `DATABASE_URL`, crie o banco com o mesmo nome de `DB_NAME`:
 
 ```sql
 CREATE DATABASE conectfy;
 ```
 
-### 3. Instalação
+### 3. Instalação e execução em desenvolvimento
 
 ```bash
 npm install
-```
-
-### 4. Primeira execução
-
-```bash
 npm run start:dev
 ```
 
-Na primeira execução, o TypeORM cria o schema automaticamente.
+O servidor sobe por padrão na porta **3333** (ou na porta definida em `PORT`). Na primeira execução, o TypeORM pode sincronizar o schema conforme `NODE_ENV` e `TYPEORM_SYNC` (veja `.env.example`).
 
-### 5. Seed (opcional)
+### 4. Seed (opcional)
 
 ```bash
 npm run seed
 ```
 
-Alias de `seed:demo-tags` — rode **apenas depois** de ter executado `npm run start:dev` com sucesso (tabelas criadas).
+Execute **depois** de o backend ter subido com sucesso ao menos uma vez (tabelas criadas).
 
 ---
 
 ## Scripts principais
 
-| Script | Função |
-|--------|--------|
-| `npm run start:dev` | Desenvolvimento (watch) |
-| `npm run build` | Build para `dist/` |
-| `npm run start:prod` | Produção (`node dist/main`, após `build`) |
+| Comando | Uso |
+|---------|-----|
+| `npm install` | Instala dependências (inclui `devDependencies` necessárias ao build) |
+| `npm run start:dev` | Desenvolvimento com hot reload (`npx nest start --watch`) |
+| `npm run build` | Compila TypeScript para **`dist/`** (`npx nest build`) |
+| `npm start` | **Produção:** executa `node dist/main` (exige `build` prévio) |
+| `npm run start:prod` | Equivalente a `npm start` |
 | `npm run seed` | Dados de demonstração |
 
-Outros scripts (`lint`, `test`, etc.) — ver `package.json`.
+Lint, testes e outros scripts: ver **`package.json`**.
 
 ---
 
-## Uploads
+## Build e start (produção)
 
-Arquivos enviados pelos usuários são armazenados em `uploads/` e expostos via `/uploads/`.
+Na máquina local ou no CI, após configurar variáveis:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+O processo escuta **`0.0.0.0`** e a porta vinda de **`PORT`** (no Render é injetada automaticamente). Em desenvolvimento, sem `PORT`, usa **3333**.
+
+---
+
+## Deploy no Render
+
+### Visão geral
+
+1. Crie um banco **PostgreSQL** no Render e aguarde status **Available**.  
+2. Crie um **Web Service** ligado ao mesmo repositório Git (monorepo: use **Root Directory** `backend`).  
+3. Configure **variáveis de ambiente** no Web Service (não no Postgres).  
+4. Faça o deploy; verifique os **logs** se algo falhar na subida.
+
+### Root Directory, build e start
+
+| Campo no Render | Valor recomendado |
+|-----------------|-------------------|
+| **Root Directory** | `backend` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm start` |
+
+### Variáveis de ambiente obrigatórias (Web Service)
+
+| Variável | Descrição |
+|----------|-----------|
+| **`NODE_ENV`** | `production` — necessário para CORS, TypeORM e validações na subida. |
+| **`DATABASE_URL`** | Cole a **Internal Database URL** do Postgres no Render (mesma região que o Web Service). |
+| **`JWT_SECRET`** | Segredo forte (mínimo **16 caracteres** exigido pela validação em produção). |
+| **`CORS_ORIGIN`** | Origens HTTPS permitidas, **separadas por vírgula** (ex.: front ou Expo web). Pedidos **sem** header `Origin` (app nativo) costumam ser aceitos; para **navegador**, configure as origens corretas. |
+
+O Render define automaticamente **`PORT`** e **`RENDER=true`**. Com `RENDER=true`, o backend exige **`NODE_ENV=production`**.
+
+### Variáveis recomendadas no primeiro deploy
+
+| Variável | Quando usar |
+|----------|-------------|
+| **`TYPEORM_SYNC`** | `true` **uma vez** se o banco estiver vazio e você **não** usar migrations ainda; depois volte para `false` ou remova. |
+| **`JWT_EXPIRES_IN`** | Opcional (ex.: `7d`); há default no código se omitir. |
+| **`CORS_ALLOW_EXPO_HOSTS`** | Opcional: `false` para restringir CORS apenas ao que estiver em `CORS_ORIGIN`. |
+
+### Cópia local das variáveis do Render
+
+O arquivo **`render-env.local`** (listado no `.gitignore`) serve só como **cópia de backup** das variáveis do painel; **não** é carregado automaticamente pelo Nest.
 
 ---
 
 ## Integração com o mobile
 
-API padrão: **`http://localhost:3333`**. Expo, IP na LAN e `EXPO_PUBLIC_API_URL` — **[README do mobile](../mobile/README.md)**.
+- **Local:** API em `http://localhost:3333` no PC; no Expo use o IP da LAN ou `10.0.2.2` no emulador Android — ver **[README do mobile](../mobile/README.md)**.  
+- **Produção:** URL pública `https://<serviço>.onrender.com` em **`EXPO_PUBLIC_API_URL`** no app (EAS Secrets ou `.env` conforme o fluxo de build).
 
 ---
 
-## Documentação adicional
+## Uploads
 
-- [README principal](../README.md)
-- [NestJS](https://docs.nestjs.com)
+Ficheiros ficam em **`uploads/`** e são servidos em **`/uploads/`**. Em serviços como o Render, o filesystem é **efêmero**: arquivos podem ser perdidos em redeploy; para produção séria considere armazenamento objeto (S3, etc.).
+
+---
+
+## Referências
+
+- [README principal](../README.md)  
+- [README do mobile](../mobile/README.md)  
+- [NestJS](https://docs.nestjs.com)  
+- [Render — Web Services](https://render.com/docs/web-services)  
+- [Variáveis de exemplo](./.env.example)
+
+---
+
+## CHANGELOG RECENTE (último commit)
+
+> Alterações **desta revisão** na documentação do backend.
+
+- Documentação de **produção**: `npm run build`, `npm start`, ausência de Nest CLI global (`npx nest build`).
+- Seção **Deploy no Render** com Root Directory, Build/Start e tabela de variáveis (**`NODE_ENV`**, **`DATABASE_URL`**, **`JWT_SECRET`**, **`CORS_ORIGIN`**, **`TYPEORM_SYNC`**).
+- Esclarecimento **TypeORM**: `DATABASE_URL` vs **`DB_*`**, SSL em Postgres gerenciado, aviso sobre **`TYPEORM_SYNC`** no primeiro deploy.
+- **Integração mobile** e limitações de **`uploads/`** em PaaS.
+- Estrutura de pastas e scripts alinhados ao `package.json` atual.
+
+---
+
+## O que mudou na documentação (em relação à versão anterior do README do backend)
+
+- Passo a passo explícito para **Render** (antes o README focava só em local + `start:prod`).
+- Tabela de **variáveis obrigatórias** e menção a **`PORT`** / **`RENDER`**.
+- Comandos de produção padronizados como **`npm install` → `npm run build` → `npm start`**.
+- Menção a **`render-env.local`** e ao uso de **`npx`** no desenvolvimento.
+
+---
+
+**README do backend pronto para GitHub** (documentação local + produção + entrega acadêmica).
