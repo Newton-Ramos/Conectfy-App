@@ -8,7 +8,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashOverlay } from '@/components/Splash';
@@ -16,6 +16,10 @@ import { SPLASH_MIN_MS } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // no-op: pode falhar em alguns fluxos (ex.: hot reload)
+});
 
 /**
  * Não usar `anchor: '(tabs)'` aqui — isso faz o Router privilegiar as Tabs na entrada e briga com o fluxo Auth → Welcome → Login.
@@ -60,9 +64,16 @@ function SplashGate({ children }: { children: ReactNode }) {
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [renderOverlay, setRenderOverlay] = useState(true);
 
-  /* Native splash some assim que o overlay JS monta (evita “splash dupla” estendida). */
+  /**
+   * Evita “flash” branco: segura o splash nativo até o overlay JS
+   * ter sido montado e pelo menos 1 frame ter sido pintado.
+   */
   useLayoutEffect(() => {
-    void SplashScreen.hideAsync();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        void SplashScreen.hideAsync();
+      });
+    });
   }, []);
 
   useEffect(() => {
@@ -86,13 +97,30 @@ function SplashGate({ children }: { children: ReactNode }) {
   );
 }
 
+/** Fundo do navigator alinhado à splash — evita área branca + texto “sumindo” no tema claro. */
+const NAV_BRAND_BG = '#0F3D3E';
+
 function RootStack() {
   const colorScheme = useColorScheme();
 
+  const navigationTheme = useMemo(() => {
+    const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        background: NAV_BRAND_BG,
+      },
+    };
+  }, [colorScheme]);
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <AuthNavigationSync />
-      <Stack>
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: NAV_BRAND_BG },
+        }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -104,7 +132,7 @@ function RootStack() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0F3D3E' }}>
       <SafeAreaProvider>
         <AuthProvider>
           <SplashGate>
