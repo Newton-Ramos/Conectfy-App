@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
 
 import { LoginDto } from '../users/dto/login.dto';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 import { User } from '../users/user.entity';
 import { MailService } from '../mail/mail.service';
 
