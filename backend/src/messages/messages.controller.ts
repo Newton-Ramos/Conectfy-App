@@ -19,12 +19,35 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
+import type { Request as ExpressRequest } from 'express';
 import { MessageMediaType } from './entities/message.entity';
 import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageHistoryQueryDto } from './dto/message-history-query.dto';
 import { AddReactionDto } from './dto/reaction.dto';
+
+/** Usuário anexado ao request após JwtAuthGuard (ver JwtStrategy). */
+type AuthenticatedRequest = ExpressRequest & {
+  user: {
+    userId: number;
+    email?: string;
+    nome?: string;
+    role?: string;
+  };
+};
+
+/** Arquivo persistido em disco pelo Multer (equivalente a Express.Multer.File, sem namespace global). */
+interface MulterDiskFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+}
 
 function uploadSubdir(mimetype: string): string {
   if (mimetype.startsWith('image/')) return 'images';
@@ -56,7 +79,7 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  create(@Body() data: CreateMessageDto, @Request() req) {
+  create(@Body() data: CreateMessageDto, @Request() req: AuthenticatedRequest) {
     return this.messagesService.create({
       senderId: req.user.userId,
       receiverId: data.receiverId,
@@ -69,7 +92,7 @@ export class MessagesController {
   }
 
   @Get('conversations')
-  findAllConversations(@Request() req) {
+  findAllConversations(@Request() req: AuthenticatedRequest) {
     return this.messagesService.getActiveConversations(req.user.userId);
   }
 
@@ -94,7 +117,7 @@ export class MessagesController {
       },
     }),
   )
-  uploadVoice(@UploadedFile() file: Express.Multer.File) {
+  uploadVoice(@UploadedFile() file: MulterDiskFile) {
     if (!file) throw new BadRequestException('Arquivo ausente');
     return {
       mediaUrl: `/uploads/voice/${file.filename}`,
@@ -128,7 +151,7 @@ export class MessagesController {
       },
     }),
   )
-  uploadMedia(@UploadedFile() file: Express.Multer.File) {
+  uploadMedia(@UploadedFile() file: MulterDiskFile) {
     if (!file) throw new BadRequestException('Arquivo ausente');
     const sub = uploadSubdir(file.mimetype);
     const mt = inferMediaTypeFromMime(file.mimetype);
@@ -148,7 +171,7 @@ export class MessagesController {
   @Get('history/:contactId')
   getHistory(
     @Param('contactId', ParseIntPipe) contactId: number,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Query() q: MessageHistoryQueryDto,
   ) {
     const userId = req.user.userId;
@@ -162,12 +185,12 @@ export class MessagesController {
   }
 
   @Patch('read/:contactId')
-  markAsRead(@Param('contactId', ParseIntPipe) contactId: number, @Request() req) {
+  markAsRead(@Param('contactId', ParseIntPipe) contactId: number, @Request() req: AuthenticatedRequest) {
     return this.messagesService.markAsRead(req.user.userId, contactId);
   }
 
   @Delete('conversation/:peerId')
-  deleteConversation(@Param('peerId', ParseIntPipe) peerId: number, @Request() req) {
+  deleteConversation(@Param('peerId', ParseIntPipe) peerId: number, @Request() req: AuthenticatedRequest) {
     return this.messagesService.deleteConversation(req.user.userId, peerId);
   }
 
@@ -175,13 +198,13 @@ export class MessagesController {
   addReaction(
     @Param('id', ParseIntPipe) messageId: number,
     @Body() dto: AddReactionDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.messagesService.addReaction(messageId, req.user.userId, dto.emoji);
   }
 
   @Delete(':id/reactions')
-  removeReaction(@Param('id', ParseIntPipe) messageId: number, @Request() req) {
+  removeReaction(@Param('id', ParseIntPipe) messageId: number, @Request() req: AuthenticatedRequest) {
     return this.messagesService.removeReaction(messageId, req.user.userId);
   }
 
@@ -189,14 +212,14 @@ export class MessagesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: { content: string },
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.messagesService.update(id, req.user.userId, data.content);
   }
 
   /** Soft delete — “Apagar para todos” local ao remetente neste MVP */
   @Delete(':id')
-  softDelete(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  softDelete(@Param('id', ParseIntPipe) id: number, @Request() req: AuthenticatedRequest) {
     return this.messagesService.softDelete(id, req.user.userId);
   }
 }
