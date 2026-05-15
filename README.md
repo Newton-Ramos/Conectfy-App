@@ -19,12 +19,6 @@ Cliente mobile consome a API via HTTP; eventos em tempo real usam **Socket.IO**.
 
 ---
 
-## 🔑 Credenciais de Teste
-
-O professor pode utilizar o e-mail **newtonramos@gmail.com** para testar o fluxo de dados já populados.
-
----
-
 ## Features
 
 - Autenticação **JWT** (login, cadastro por fluxo de email e recuperação de senha)
@@ -76,10 +70,9 @@ Referência detalhada: [`backend/README.md`](./backend/README.md) · [`mobile/RE
 
 ## Pré-requisitos
 
-- **Node.js** 20+ e **npm** (`engines` nos `package.json` de `backend/` e `mobile/`)
-- **PostgreSQL** (local ou Render Postgres)
+- **Node.js** 20+
 - **Git**
-- Mobile: **Expo Go** e/ou emulador Android (Xcode no macOS para iOS)
+- **Expo Go**
 
 ---
 
