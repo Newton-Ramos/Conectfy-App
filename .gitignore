@@ -57,3 +57,5 @@ backend/uploads/
 
 # Pastas locais do projeto (ajuste se algo aqui deveria versionar)
 frontend/
+# Banco de dados e backups locais
+backend/dados_conectfy.sql
