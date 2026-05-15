@@ -1,5 +1,9 @@
 # Conectfy
 
+**Projeto:** Conectfy  
+**Instituição:** Centro Universitário de Brasília (CEUB)  
+**Desenvolvedor:** Newton Junior
+
 [![API](https://img.shields.io/badge/API-NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com)
 [![Mobile](https://img.shields.io/badge/Mobile-Expo-000020?logo=expo&logoColor=white)](https://expo.dev)
 [![Database](https://img.shields.io/badge/DB-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -12,6 +16,12 @@ Monorepo full-stack: **NestJS** (`backend/`) + **Expo / React Native** (`mobile/
 ## Visão geral
 
 Cliente mobile consome a API via HTTP; eventos em tempo real usam **Socket.IO**. Dados persistem em **PostgreSQL**. Deploy da API em **Render**; o app resolve a base URL com **`EXPO_PUBLIC_API_URL`**.
+
+---
+
+## 🔑 Credenciais de Teste
+
+O professor pode utilizar o e-mail **newtonramos@gmail.com** para testar o fluxo de dados já populados.
 
 ---
 
@@ -107,7 +117,7 @@ Variável **`EXPO_PUBLIC_API_URL`**: URL base da API (sem path extra, salvo conv
 |---------|---------|
 | Emulador Android → API no host | `http://10.0.2.2:3333` |
 | Dispositivo físico → API no PC (mesma LAN) | `http://192.168.0.15:3333` |
-| API no Render | `https://<serviço>.onrender.com` |
+| API no Render | `https://conectfy-backend.onrender.com` |
 
 - Emulador: não usar `localhost` para alcançar o host; usar `10.0.2.2`.  
 - Físico: usar IPv4 da máquina que roda o Nest, não `127.0.0.1` do telefone.  
@@ -124,7 +134,7 @@ Variável **`EXPO_PUBLIC_API_URL`**: URL base da API (sem path extra, salvo conv
 3. **Environment:** `NODE_ENV`, `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGIN` (e demais do [`.env.example`](./backend/.env.example)).  
 4. **Build:** `npm install && npm run build`  
 5. **Start:** `npm start`  
-6. Validar URL pública `https://<app>.onrender.com`.
+6. Validar URL pública `https://conectfy-backend.onrender.com`.
 
 `PORT` / `RENDER`: injetados pelo Render.
 

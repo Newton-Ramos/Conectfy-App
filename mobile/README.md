@@ -47,7 +47,7 @@ EXPO_PUBLIC_API_URL=http://<SEU_IP_NA_LAN>:3333
 |----------|----------------------------------------|
 | Celular físico (Wi‑Fi, backend no PC) | `http://<IPv4_do_PC>:3333` |
 | Emulador Android (backend no PC) | `http://10.0.2.2:3333` |
-| Backend publicado no **Render** | `https://<nome-do-serviço>.onrender.com` |
+| Backend publicado no **Render** | `https://conectfy-backend.onrender.com` |
 
 - Use o prefixo **`EXPO_PUBLIC_`** para variáveis lidas pelo bundle do Expo.  
 - **HTTPS** na URL pública (Render) é o esperado em produção.  
@@ -120,26 +120,3 @@ URL padrão no computador de desenvolvimento: **`http://localhost:3333`**. Deplo
 - [Expo](https://docs.expo.dev/)  
 - [Expo Router](https://docs.expo.dev/router/introduction/)  
 - [EAS Build](https://docs.expo.dev/build/introduction/)
-
----
-
-## CHANGELOG RECENTE (último commit)
-
-> Alterações **desta revisão** na documentação do mobile.
-
-- Seção dedicada a **`EXPO_PUBLIC_API_URL`** com exemplos **local** vs **Render (HTTPS)**.
-- Reforço do fluxo **`npm install`** + **`npx expo start`** e reinício do Metro após mudar `.env`.
-- Nova tabela **Expo Go vs EAS Build** para entrega acadêmica e testes pelo professor.
-- Links para EAS e scripts do `package.json`.
-
----
-
-## O que mudou na documentação (em relação à versão anterior do README do mobile)
-
-- Explicação explícita de **produção** com API no **Render** (`https://...`).
-- Diferença **Expo Go** × **build EAS** (APK, independência do PC).
-- Comando **`npx expo start`** destacado como referência principal.
-
----
-
-**README do mobile pronto para GitHub** (desenvolvimento, ligação ao backend e orientação para build de entrega).

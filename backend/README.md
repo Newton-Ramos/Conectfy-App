@@ -20,7 +20,7 @@ API **NestJS** com **PostgreSQL** (**TypeORM**), **JWT**, **Socket.IO** e armaze
 |------|-----------|
 | `src/` | Código da aplicação (módulos `auth`, `users`, `messages`, etc.) |
 | `src/config/` | Validação de ambiente em produção, opções de CORS |
-| `dist/` | Saída do build TypeScript (`nest build`) — usada em produção |
+| `dist/` | Saída do build TypeScript (`npm run build` → `dist/src/`) — usada em produção |
 | `uploads/` | Arquivos servidos em `/uploads/` (voz, etc.; em PaaS o disco costuma ser efêmero) |
 
 ---
@@ -31,7 +31,7 @@ API **NestJS** com **PostgreSQL** (**TypeORM**), **JWT**, **Socket.IO** e armaze
 - **npm** (não é necessário Yarn)
 - **PostgreSQL** acessível (local ou **Render Postgres**)
 
-A CLI do Nest usada no **build** vem de **`devDependencies`** (`@nestjs/cli`); o script `build` usa **`npx nest build`** (sem Nest instalado globalmente). Em **runtime** apenas **`node dist/main`** (`npm start`).
+O script **`npm run build`** usa **`tsc -p tsconfig.build.json`**. Em **runtime** de produção, **`npm start`** executa **`node dist/src/main.js`** (exige `build` prévio).
 
 ---
 
@@ -97,10 +97,11 @@ Execute **depois** de o backend ter subido com sucesso ao menos uma vez (tabelas
 |---------|-----|
 | `npm install` | Instala dependências (inclui `devDependencies` necessárias ao build) |
 | `npm run start:dev` | Desenvolvimento com hot reload (`npx nest start --watch`) |
-| `npm run build` | Compila TypeScript para **`dist/`** (`npx nest build`) |
-| `npm start` | **Produção:** executa `node dist/main` (exige `build` prévio) |
+| `npm run build` | Compila TypeScript para **`dist/src/`** (`tsc -p tsconfig.build.json`) |
+| `npm start` | **Produção:** `node dist/src/main.js` (exige `build` prévio) |
 | `npm run start:prod` | Equivalente a `npm start` |
 | `npm run seed` | Dados de demonstração |
+| `npm run migration:run` / `migration:run:prod` | Migrations (ver `package.json`) |
 
 Lint, testes e outros scripts: ver **`package.json`**.
 
@@ -165,7 +166,7 @@ O arquivo **`render-env.local`** (listado no `.gitignore`) serve só como **cóp
 ## Integração com o mobile
 
 - **Local:** API em `http://localhost:3333` no PC; no Expo use o IP da LAN ou `10.0.2.2` no emulador Android — ver **[README do mobile](../mobile/README.md)**.  
-- **Produção:** URL pública `https://<serviço>.onrender.com` em **`EXPO_PUBLIC_API_URL`** no app (EAS Secrets ou `.env` conforme o fluxo de build).
+- **Produção:** URL pública **`https://conectfy-backend.onrender.com`** em **`EXPO_PUBLIC_API_URL`** no app (EAS Secrets ou `.env` conforme o fluxo de build).
 
 ---
 
@@ -182,28 +183,3 @@ Ficheiros ficam em **`uploads/`** e são servidos em **`/uploads/`**. Em serviç
 - [NestJS](https://docs.nestjs.com)  
 - [Render — Web Services](https://render.com/docs/web-services)  
 - [Variáveis de exemplo](./.env.example)
-
----
-
-## CHANGELOG RECENTE (último commit)
-
-> Alterações **desta revisão** na documentação do backend.
-
-- Documentação de **produção**: `npm run build`, `npm start`, ausência de Nest CLI global (`npx nest build`).
-- Seção **Deploy no Render** com Root Directory, Build/Start e tabela de variáveis (**`NODE_ENV`**, **`DATABASE_URL`**, **`JWT_SECRET`**, **`CORS_ORIGIN`**, **`TYPEORM_SYNC`**).
-- Esclarecimento **TypeORM**: `DATABASE_URL` vs **`DB_*`**, SSL em Postgres gerenciado, aviso sobre **`TYPEORM_SYNC`** no primeiro deploy.
-- **Integração mobile** e limitações de **`uploads/`** em PaaS.
-- Estrutura de pastas e scripts alinhados ao `package.json` atual.
-
----
-
-## O que mudou na documentação (em relação à versão anterior do README do backend)
-
-- Passo a passo explícito para **Render** (antes o README focava só em local + `start:prod`).
-- Tabela de **variáveis obrigatórias** e menção a **`PORT`** / **`RENDER`**.
-- Comandos de produção padronizados como **`npm install` → `npm run build` → `npm start`**.
-- Menção a **`render-env.local`** e ao uso de **`npx`** no desenvolvimento.
-
----
-
-**README do backend pronto para GitHub** (documentação local + produção + entrega acadêmica).
