@@ -22,8 +22,17 @@ export type MockNotificationSeed = {
   title: string;
   body?: string | null;
   grupo: 'hoje' | 'ontem' | 'anteriores';
-  kind: 'evento' | 'mensagem' | 'sistema' | 'aniversario';
+  kind: 'evento' | 'sistema' | 'aniversario';
   hoursAgo?: number;
+};
+
+export type MockCalendarEventSeed = {
+  title: string;
+  notes?: string;
+  /** Dias a partir de hoje (pode ser negativo) */
+  daysFromNow: number;
+  hour: number;
+  minute?: number;
 };
 
 export type MockMessageSeed = {
@@ -72,18 +81,18 @@ export const MOCK_SCENARIO_OWNERS: MockScenarioOwner[] = [
     },
     notifications: [
       {
-        title: 'Patricia Mendes enviou uma mensagem',
-        body: 'Oi Marcos! Confirmou o almoço de domingo?',
-        grupo: 'hoje',
-        kind: 'mensagem',
-        hoursAgo: 2,
+        title: 'Patricia Mendes adicionada ao grupo de Família',
+        body: null,
+        grupo: 'ontem',
+        kind: 'sistema',
+        hoursAgo: 28,
       },
       {
         title: 'Ricardo Alves adicionado ao grupo de Trabalho',
         body: null,
         grupo: 'ontem',
         kind: 'sistema',
-        hoursAgo: 28,
+        hoursAgo: 26,
       },
     ],
     messages: [
@@ -125,10 +134,10 @@ export const MOCK_SCENARIO_OWNERS: MockScenarioOwner[] = [
         hoursAgo: 30,
       },
       {
-        title: 'Bruno Oliveira enviou uma mensagem',
-        body: 'Juliana, fechamos o grupo do trabalho?',
+        title: 'Bruno Oliveira adicionado ao grupo de Amigos',
+        body: null,
         grupo: 'ontem',
-        kind: 'mensagem',
+        kind: 'sistema',
         hoursAgo: 26,
       },
     ],
@@ -151,10 +160,10 @@ export const MOCK_SCENARIO_OWNERS: MockScenarioOwner[] = [
     },
     notifications: [
       {
-        title: 'Marina Rocha enviou uma mensagem',
-        body: 'Treino confirmado amanhã às 7h no parque.',
+        title: 'Marina Rocha adicionada ao grupo de Esportes',
+        body: null,
         grupo: 'hoje',
-        kind: 'mensagem',
+        kind: 'sistema',
         hoursAgo: 3,
       },
       {
@@ -187,11 +196,18 @@ export const MOCK_SCENARIO_OWNERS: MockScenarioOwner[] = [
     },
     notifications: [
       {
-        title: 'Henrique Melo enviou uma mensagem',
-        body: 'Camila, a festa da família é no sábado.',
+        title: 'Henrique Melo adicionado ao grupo de Família',
+        body: null,
         grupo: 'ontem',
-        kind: 'mensagem',
+        kind: 'sistema',
         hoursAgo: 20,
+      },
+      {
+        title: 'Festa da família — sábado às 19h',
+        body: 'Evento no círculo Família. Confirme presença.',
+        grupo: 'hoje',
+        kind: 'evento',
+        hoursAgo: 6,
       },
     ],
     messages: [
@@ -211,10 +227,10 @@ export const MOCK_SCENARIO_OWNERS: MockScenarioOwner[] = [
     },
     notifications: [
       {
-        title: 'Diego Santos enviou uma mensagem',
-        body: 'Lucas, vi sua vaga no LinkedIn — bora conversar?',
+        title: 'Diego Santos te convidou para networking às 17h',
+        body: 'Encontro no coworking — confirme presença.',
         grupo: 'hoje',
-        kind: 'mensagem',
+        kind: 'evento',
         hoursAgo: 5,
       },
       {

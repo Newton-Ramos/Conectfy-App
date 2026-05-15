@@ -11,11 +11,6 @@ import { Notification } from './notification.entity';
 import { UserContact } from '../users/user-contact.entity';
 import { User } from '../users/user.entity';
 import { isDemoOwnerEmail, isRaquelEmail } from './demo-users';
-import {
-  buildIdealNotificationFeed,
-  type ContactForFeed,
-  type MessageForFeed,
-} from './notifications-feed.builder';
 
 export type NotificationFeedItem = {
   id: number;
@@ -124,65 +119,13 @@ export class NotificationsService implements OnModuleInit {
     return [...birthdayNotifs, ...dbNotifs.map((n) => this.toFeedItem(n))];
   }
 
-  /**
-   * Demais usuários: painel montado a partir dos contatos (seed) + mensagens reais.
-   * Sem contatos → painel vazio (ex.: Raquel).
-   */
+  /** Painel mockado no banco (`seed:mock-scenarios`) — eventos, grupos, aniversários. */
   private async findForPersonalUser(userId: number): Promise<NotificationFeedItem[]> {
-    const contacts = await this.loadContactsForFeed(userId);
-    if (contacts.length === 0) {
-      return [];
-    }
-    const messages = await this.loadMessagesForFeed(userId);
-    return buildIdealNotificationFeed(userId, contacts, messages);
-  }
-
-  private async loadContactsForFeed(userId: number): Promise<ContactForFeed[]> {
-    try {
-      const rows: { id: number; nome: string; tags: unknown }[] =
-        await this.contactRepo.query(
-          `
-        SELECT u.id AS id, u.nome AS nome, uc.tags AS tags
-        FROM user_contacts uc
-        INNER JOIN users u ON u.id = uc.contact_id
-        WHERE uc.user_id = $1
-          AND uc.contact_id <> uc.user_id
-        ORDER BY u.nome ASC
-        `,
-          [userId],
-        );
-      return rows.map((r) => ({
-        id: r.id,
-        nome: r.nome,
-        tags: Array.isArray(r.tags)
-          ? r.tags.filter((t): t is string => typeof t === 'string')
-          : [],
-      }));
-    } catch {
-      return [];
-    }
-  }
-
-  private async loadMessagesForFeed(userId: number): Promise<MessageForFeed[]> {
-    try {
-      const rows: MessageForFeed[] = await this.contactRepo.query(
-        `
-        SELECT m.id AS id, u.nome AS nome, m.content AS content,
-               m."createdAt" AS "createdAt", m.read_at AS read_at
-        FROM messages m
-        INNER JOIN users u ON u.id = m."senderId"
-        WHERE m."receiverId" = $1
-          AND m."deletedAt" IS NULL
-          AND m."createdAt" >= NOW() - INTERVAL '14 days'
-        ORDER BY m."createdAt" DESC
-        LIMIT 10
-        `,
-        [userId],
-      );
-      return rows;
-    } catch {
-      return [];
-    }
+    const dbNotifs = await this.repo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+    return dbNotifs.map((n) => this.toFeedItem(n));
   }
 
   private toFeedItem(n: Notification): NotificationFeedItem {

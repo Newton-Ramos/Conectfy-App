@@ -1,11 +1,7 @@
 /**
- * Cenários mock por usuário: contatos aleatórios + painel de atualizações.
- * Não altera admin@admin.com (rode antes ou depois de seed:demo-tags).
+ * Mock completo por conta: contatos, painel (notificações), agenda (calendário).
+ * Admin e Raquel: admin intacto; Raquel tudo vazio.
  *
- * Raquel → sem contatos e sem painel.
- * Demais contas mock → contatos + notificações distintas.
- *
- * Uso (pasta backend):
  *   npm run seed:mock-scenarios
  */
 
@@ -13,6 +9,11 @@ import 'dotenv/config';
 import * as bcrypt from 'bcryptjs';
 import { Client } from 'pg';
 import { readPgClientConfig } from './pg-client-config';
+import {
+  calendarSeedToDate,
+  generateMockPack,
+  notificationSeedToRow,
+} from './mock-pack-generator';
 import {
   CONTACT_POOL,
   MOCK_SCENARIO_OWNERS,
@@ -81,6 +82,7 @@ async function upsertPoolContact(
 
 async function clearOwnerData(client: Client, ownerId: number) {
   await client.query(`DELETE FROM notifications WHERE "userId" = $1`, [ownerId]);
+  await client.query(`DELETE FROM user_calendar_events WHERE "userId" = $1`, [ownerId]);
   await client.query(
     `
     DELETE FROM messages m
@@ -91,28 +93,57 @@ async function clearOwnerData(client: Client, ownerId: number) {
   await client.query(`DELETE FROM user_contacts WHERE user_id = $1`, [ownerId]);
 }
 
-async function insertNotification(
+async function insertNotifications(
   client: Client,
   ownerId: number,
-  n: MockNotificationSeed,
+  list: MockNotificationSeed[],
 ) {
-  const createdAt = new Date(Date.now() - (n.hoursAgo ?? 0) * 3_600_000);
-  let eventAt: Date | null = null;
-  if (n.kind === 'evento') {
-    eventAt = new Date(createdAt.getTime() + 2 * 3_600_000);
+  for (const n of list) {
+    const { createdAt, eventAt } = notificationSeedToRow(n);
+    await client.query(
+      `
+      INSERT INTO notifications (title, body, grupo, kind, "eventAt", "userId", "createdAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [n.title, n.body ?? null, n.grupo, n.kind, eventAt, ownerId, createdAt],
+    );
   }
-  await client.query(
-    `
-    INSERT INTO notifications (title, body, grupo, kind, "eventAt", "userId", "createdAt")
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `,
-    [n.title, n.body ?? null, n.grupo, n.kind, eventAt, ownerId, createdAt],
-  );
+}
+
+async function insertCalendar(
+  client: Client,
+  ownerId: number,
+  pack: ReturnType<typeof generateMockPack>,
+) {
+  for (const ev of pack.calendarEvents) {
+    const dateAt = calendarSeedToDate(ev);
+    await client.query(
+      `
+      INSERT INTO user_calendar_events ("userId", title, notes, "dateAt")
+      VALUES ($1, $2, $3, $4)
+      `,
+      [ownerId, ev.title, ev.notes ?? null, dateAt],
+    );
+  }
 }
 
 async function main() {
   const client = new Client(readPgClientConfig());
   await client.connect();
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "user_calendar_events" (
+      "id" SERIAL NOT NULL,
+      "userId" integer NOT NULL,
+      "title" character varying(200) NOT NULL,
+      "notes" text,
+      "dateAt" TIMESTAMP NOT NULL,
+      "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+      CONSTRAINT "PK_user_calendar_events" PRIMARY KEY ("id"),
+      CONSTRAINT "FK_user_calendar_events_user" FOREIGN KEY ("userId")
+        REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+    )
+  `);
 
   const adminEmail = process.env.SEED_OWNER_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL;
   const adminRes = await client.query<{ id: number }>(
@@ -121,15 +152,16 @@ async function main() {
   );
   const adminId = adminRes.rows[0]?.id;
   if (adminId) {
-    console.log(`Admin preservado (id=${adminId}, ${adminEmail}) — sem alterações.`);
+    console.log(`Admin preservado (id=${adminId}) — sem alterar painel/agenda/contatos do admin.`);
   }
 
+  const poolMap = new Map<string, MockContactPoolEntry>();
   const senhaHash = await bcrypt.hash(MOCK_SCENARIO_PASSWORD, 10);
-  const poolIds = new Map<string, number>();
+
   for (const entry of CONTACT_POOL) {
     const id = await upsertPoolContact(client, entry);
-    poolIds.set(entry.key, id);
-    console.log(`Pool contato: ${entry.nome} (id=${id})`);
+    poolMap.set(entry.key, entry);
+    console.log(`Pool: ${entry.nome}`);
   }
 
   const raquelId = await upsertUser(
@@ -140,7 +172,9 @@ async function main() {
     [],
   );
   await clearOwnerData(client, raquelId);
-  console.log(`Raquel (${RAQUEL_SCENARIO.email}): painel e contatos vazios.`);
+  console.log(`Raquel: painel e agenda vazios.`);
+
+  console.log('\n--- Contas mock (senha: demo123) ---\n');
 
   for (const scenario of MOCK_SCENARIO_OWNERS) {
     const ownerId = await upsertUser(
@@ -150,43 +184,39 @@ async function main() {
       senhaHash,
       scenario.circulos,
     );
-    if (adminId && ownerId === adminId) {
-      console.warn(`Ignorando cenário ${scenario.email} — colide com admin.`);
-      continue;
-    }
+    if (adminId && ownerId === adminId) continue;
 
     await clearOwnerData(client, ownerId);
 
     const contactIds: number[] = [];
     for (const key of scenario.contactKeys) {
-      const contactId = poolIds.get(key);
-      if (!contactId) {
-        console.warn(`Contato pool "${key}" não encontrado.`);
-        continue;
-      }
-      const tags = scenario.contactTags[key] ?? [];
+      const contactId = (
+        await client.query<{ id: number }>(
+          `SELECT id FROM users WHERE lower(email) = lower($1) LIMIT 1`,
+          [poolMap.get(key)!.email],
+        )
+      ).rows[0]?.id;
+      if (!contactId) continue;
       await client.query(
         `
         INSERT INTO user_contacts (user_id, contact_id, tags, is_blocked)
         VALUES ($1, $2, $3::jsonb, false)
-        ON CONFLICT (user_id, contact_id)
-        DO UPDATE SET tags = EXCLUDED.tags
+        ON CONFLICT (user_id, contact_id) DO UPDATE SET tags = EXCLUDED.tags
         `,
-        [ownerId, contactId, JSON.stringify(tags)],
+        [ownerId, contactId, JSON.stringify(scenario.contactTags[key] ?? [])],
       );
       contactIds.push(contactId);
     }
 
-    for (const n of scenario.notifications) {
-      await insertNotification(client, ownerId, n);
-    }
+    const pack = generateMockPack(scenario, poolMap);
+    await insertNotifications(client, ownerId, pack.notifications);
+    await insertCalendar(client, ownerId, pack);
 
-    const peerId = contactIds[0];
-    if (peerId && scenario.messages?.length) {
+    if (contactIds[0] && scenario.messages?.length) {
       for (const line of scenario.messages) {
         const createdAt = new Date(Date.now() - line.hoursAgo * 3_600_000);
-        const senderId = line.fromContact ? peerId : ownerId;
-        const receiverId = line.fromContact ? ownerId : peerId;
+        const senderId = line.fromContact ? contactIds[0] : ownerId;
+        const receiverId = line.fromContact ? ownerId : contactIds[0];
         await client.query(
           `
           INSERT INTO messages ("senderId", "receiverId", content, status, "createdAt", read_at, "deliveredAt")
@@ -197,18 +227,23 @@ async function main() {
       }
     }
 
-    console.log(
-      `Cenário ${scenario.nome} <${scenario.email}>: ${contactIds.length} contato(s), ${scenario.notifications.length} notificação(ões).`,
-    );
+    console.log(`${scenario.nome}`);
+    console.log(`  E-mail: ${scenario.email}`);
+    console.log(`  Contatos: ${contactIds.length}`);
+    console.log(`  Painel: ${pack.notifications.length} itens`);
+    console.log(`  Agenda: ${pack.calendarEvents.length} eventos`);
+    console.log('  Painel (amostra):');
+    pack.notifications.slice(0, 4).forEach((n) => console.log(`    · [${n.grupo}] ${n.title}`));
+    console.log('  Agenda (amostra):');
+    pack.calendarEvents.slice(0, 3).forEach((e) => {
+      const d = calendarSeedToDate(e);
+      console.log(`    · ${e.title} — ${d.toLocaleString('pt-BR')}`);
+    });
+    console.log('');
   }
 
-  console.log('\nContas mock (senha demo123):');
-  console.log(`  ${RAQUEL_SCENARIO.email} — vazio`);
-  for (const s of MOCK_SCENARIO_OWNERS) {
-    console.log(`  ${s.email}`);
-  }
-  console.log('\nAdmin inalterado:', adminEmail);
-
+  console.log(`Raquel: ${RAQUEL_SCENARIO.email} — vazio`);
+  console.log(`Admin: ${adminEmail} — inalterado`);
   await client.end();
 }
 
