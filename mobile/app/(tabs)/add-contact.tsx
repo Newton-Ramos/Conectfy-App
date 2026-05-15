@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { hrefAfterAddContact } from '@/lib/detail-screen-back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, usersApi, type ContactUser } from '@/api/client';
-import { getApiErrorMessage } from '@/lib/api-error';
+import { getApiErrorMessage, isApiUnauthorized } from '@/lib/api-error';
 import { useAuth } from '@/contexts/auth-context';
 import {
   maskPhoneBr,
@@ -101,9 +101,11 @@ export default function AddContactScreen() {
       setMyId(me.data.id as number);
       const res = await usersApi.contactsList();
       setMyContacts(res.data);
-    } catch {
-      await signOut();
-      router.replace('/(auth)/welcome' as any);
+    } catch (err) {
+      if (isApiUnauthorized(err)) {
+        await signOut();
+        router.replace('/(auth)/welcome' as any);
+      }
     } finally {
       setLoading(false);
     }

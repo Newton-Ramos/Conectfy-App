@@ -19,6 +19,7 @@ import { PREDEFINED_CIRCLE_KEYS, CIRCLE_BADGE_BG } from '@/constants/circles';
 import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
 import { LinearGradient } from 'expo-linear-gradient';
 import { hrefContactsListBack } from '@/lib/detail-screen-back';
+import { isApiUnauthorized } from '@/lib/api-error';
 
 const BRAND = BRAND_ACCENT;
 const BG = APP_SURFACE_BG;
@@ -51,9 +52,11 @@ export default function ContactsScreen() {
       await usersApi.me();
       const res = await usersApi.contactsList();
       setUsers(res.data);
-    } catch {
-      await signOut();
-      router.replace('/(auth)/welcome' as any);
+    } catch (err) {
+      if (isApiUnauthorized(err)) {
+        await signOut();
+        router.replace('/(auth)/welcome' as any);
+      }
     } finally {
       setLoading(false);
     }

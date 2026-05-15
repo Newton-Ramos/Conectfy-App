@@ -43,7 +43,7 @@ export function assertProductionEnvironment(): void {
   const sync = process.env.TYPEORM_SYNC?.trim();
   if (sync === 'true') {
     console.warn(
-      '[Conectfy] TYPEORM_SYNC=true em produção: synchronize está ativo. Desligue após o primeiro schema ou use migrations.',
+      '[Conectfy] TYPEORM_SYNC=true é ignorado em produção (synchronize desligado). Use migrations (migrationsRun na subida) ou RELEASE: npm run migration:run:prod.',
     );
   }
 

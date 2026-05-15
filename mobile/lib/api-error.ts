@@ -1,3 +1,10 @@
+import axios from 'axios';
+
+/** Só desloga quando o token é inválido/expirado — não em erro 500 ou rede. */
+export function isApiUnauthorized(err: unknown): boolean {
+  return axios.isAxiosError(err) && err.response?.status === 401;
+}
+
 /** Mensagem amigável para falhas de rede ou respostas Nest (message array ou string). */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
   if (typeof err === 'object' && err !== null && 'response' in err) {

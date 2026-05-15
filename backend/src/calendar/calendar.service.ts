@@ -50,9 +50,13 @@ export class CalendarService {
       dateAt,
     });
 
-    await this.notificationRepo.save(
-      notificationFromCalendarEvent(userId, row),
-    );
+    try {
+      await this.notificationRepo.save(
+        notificationFromCalendarEvent(userId, row),
+      );
+    } catch {
+      /* painel opcional se notifications ainda não tiver calendarEventId */
+    }
 
     return {
       id: row.id,

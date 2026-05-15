@@ -1,10 +1,13 @@
 BUILD:
 npm install && npm run build
 
-START:
-node dist/src/main.js
+START (recomendado — roda migrations antes de subir):
+npm start
 
-RELEASE:
+Alternativa equivalente:
+npm run migration:run:prod && node dist/src/main.js
+
+RELEASE (opcional; migrations também rodam via migrationsRun e npm start):
 npm run migration:run:prod
 
 VARIÁVEIS:

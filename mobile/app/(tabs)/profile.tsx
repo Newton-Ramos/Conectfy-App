@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/auth-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
+import { isApiUnauthorized } from '@/lib/api-error';
 
 type User = {
   id: number;
@@ -86,9 +87,11 @@ export default function ProfileScreen() {
 
         const res = await api.get('/users/me');
         setUser(res.data);
-      } catch {
-        await signOut();
-        router.replace('/(auth)/welcome' as any);
+      } catch (err) {
+        if (isApiUnauthorized(err)) {
+          await signOut();
+          router.replace('/(auth)/welcome' as any);
+        }
       } finally {
         setLoading(false);
       }

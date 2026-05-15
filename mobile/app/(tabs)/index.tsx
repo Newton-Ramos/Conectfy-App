@@ -25,6 +25,7 @@ import { BRAND_GRADIENT_COLORS, BRAND_TEAL_DEEP, LOGO_IMAGE, SLOGAN_UPPER } from
 import { circleAccentSolid, circleIconBackdrop } from '@/constants/circles';
 import { NetworkMotif } from '@/components/brand/NetworkMotif';
 import { isDemoOwnerEmail, isRaquelEmail } from '@/lib/demo-owner';
+import { isApiUnauthorized } from '@/lib/api-error';
 
 const BRAND = BRAND_TEAL_DEEP;
 const PAGE_BG = '#f8fafc';
@@ -204,9 +205,14 @@ export default function HomeScreen() {
       setUserCircles(
         circlesRes && Array.isArray(circlesRes.data.circles) ? circlesRes.data.circles : [],
       );
-    } catch {
-      await signOut();
-      router.replace('/(auth)/welcome' as any);
+    } catch (err) {
+      if (isApiUnauthorized(err)) {
+        await signOut();
+        router.replace('/(auth)/welcome' as any);
+        return;
+      }
+      setItems([]);
+      setUserCircles([]);
     } finally {
       setLoading(false);
     }

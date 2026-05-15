@@ -40,6 +40,15 @@ export class NotificationsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    try {
+      await this.repo.manager.query(`
+        ALTER TABLE "notifications"
+        ADD COLUMN IF NOT EXISTS "calendarEventId" integer
+      `);
+    } catch {
+      /* Postgres indisponível ou tabela ainda não criada */
+    }
+
     const n = await this.repo.count();
     if (n > 0) return;
     const soon = new Date();
@@ -125,7 +134,11 @@ export class NotificationsService implements OnModuleInit {
 
   /** Painel: notificações do banco + eventos do calendário sem entrada no painel. */
   private async findForPersonalUser(userId: number): Promise<NotificationFeedItem[]> {
-    await this.syncCalendarEventsToPanel(userId);
+    try {
+      await this.syncCalendarEventsToPanel(userId);
+    } catch {
+      /* coluna/tabela de calendário ausente ou sync falhou — painel segue com notificações existentes */
+    }
     const dbNotifs = await this.repo.find({
       where: { userId },
       order: { createdAt: 'DESC' },

@@ -17,6 +17,7 @@ import { circlesApi, type CircleSummary } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
 import { circleAccentSolid, circleIconBackdrop } from '@/constants/circles';
 import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
+import { isApiUnauthorized } from '@/lib/api-error';
 import type { Href } from 'expo-router';
 
 const EXPLORE_HREF: Href = '/(tabs)/explore';
@@ -64,9 +65,11 @@ export default function CirclesScreen() {
       const res = await circlesApi.summary();
       setResumo(res.data.resumo);
       setCircles(res.data.circles);
-    } catch {
-      await signOut();
-      router.replace('/(auth)/welcome' as any);
+    } catch (err) {
+      if (isApiUnauthorized(err)) {
+        await signOut();
+        router.replace('/(auth)/welcome' as any);
+      }
     } finally {
       setLoading(false);
     }
