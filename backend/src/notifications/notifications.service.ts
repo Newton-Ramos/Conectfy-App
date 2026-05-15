@@ -10,7 +10,9 @@ import { IsNull, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { UserContact } from '../users/user-contact.entity';
 import { User } from '../users/user.entity';
+import { UserCalendarEvent } from '../calendar/user-calendar-event.entity';
 import { isDemoOwnerEmail, isRaquelEmail } from './demo-users';
+import { notificationFromCalendarEvent } from './calendar-notification.sync';
 
 export type NotificationFeedItem = {
   id: number;
@@ -33,6 +35,8 @@ export class NotificationsService implements OnModuleInit {
     private readonly contactRepo: Repository<UserContact>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(UserCalendarEvent)
+    private readonly calendarRepo: Repository<UserCalendarEvent>,
   ) {}
 
   async onModuleInit() {
@@ -119,13 +123,38 @@ export class NotificationsService implements OnModuleInit {
     return [...birthdayNotifs, ...dbNotifs.map((n) => this.toFeedItem(n))];
   }
 
-  /** Painel mockado no banco (`seed:mock-scenarios`) — eventos, grupos, aniversários. */
+  /** Painel: notificações do banco + eventos do calendário sem entrada no painel. */
   private async findForPersonalUser(userId: number): Promise<NotificationFeedItem[]> {
+    await this.syncCalendarEventsToPanel(userId);
     const dbNotifs = await this.repo.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
     return dbNotifs.map((n) => this.toFeedItem(n));
+  }
+
+  /** Cria notificação para eventos da agenda que ainda não estão no painel (ex.: criados antes do vínculo). */
+  private async syncCalendarEventsToPanel(userId: number): Promise<void> {
+    const events = await this.calendarRepo.find({
+      where: { userId },
+      order: { dateAt: 'ASC' },
+    });
+    if (events.length === 0) return;
+
+    const linked = await this.repo.find({
+      where: { userId },
+      select: ['calendarEventId'],
+    });
+    const linkedIds = new Set(
+      linked.map((n) => n.calendarEventId).filter((id): id is number => id != null),
+    );
+
+    const orphans = events.filter((e) => !linkedIds.has(e.id));
+    if (orphans.length === 0) return;
+
+    await this.repo.save(
+      orphans.map((e) => notificationFromCalendarEvent(userId, e)),
+    );
   }
 
   private toFeedItem(n: Notification): NotificationFeedItem {

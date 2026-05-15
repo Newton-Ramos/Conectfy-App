@@ -39,6 +39,10 @@ export class Notification {
   @Column({ type: 'varchar', length: 8, nullable: true })
   rsvpStatus?: 'sim' | 'nao' | null;
 
+  /** Vínculo com evento do calendário (painel espelha a agenda). */
+  @Column({ nullable: true })
+  calendarEventId?: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

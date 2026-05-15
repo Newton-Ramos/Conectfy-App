@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserCalendarEvent } from './user-calendar-event.entity';
+import { Notification } from '../notifications/notification.entity';
 import { CalendarService } from './calendar.service';
 import { CalendarController } from './calendar.controller';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserCalendarEvent]), UsersModule],
+  imports: [TypeOrmModule.forFeature([UserCalendarEvent, Notification]), UsersModule],
   controllers: [CalendarController],
   providers: [CalendarService],
   exports: [CalendarService],

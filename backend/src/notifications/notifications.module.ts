@@ -5,9 +5,12 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { UserContact } from '../users/user-contact.entity';
 import { User } from '../users/user.entity';
+import { UserCalendarEvent } from '../calendar/user-calendar-event.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification, UserContact, User])],
+  imports: [
+    TypeOrmModule.forFeature([Notification, UserContact, User, UserCalendarEvent]),
+  ],
   controllers: [NotificationsController],
   providers: [NotificationsService],
   exports: [NotificationsService],
