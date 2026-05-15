@@ -37,7 +37,7 @@ import { readTypeOrmConnectionOptions } from './typeorm-env';
           ...connection,
           autoLoadEntities: true,
           synchronize,
-          migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
+          migrations: [join(__dirname, 'migrations', '[0-9]*.{js,ts}')],
           /** Em produção o sync está sempre off — migrations aplicam o schema (ex.: calendarEventId). */
           migrationsRun: isProd,
         };

@@ -1,5 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { createPostgresEnumIfNotExists } from './migration-utils';
+import { createPostgresEnumIfNotExists } from '../database/migration-utils';
 
 export class InitialSchema1747248000000 implements MigrationInterface {
   name = 'InitialSchema1747248000000';
