@@ -18,7 +18,9 @@ export class FacebookStrategy extends PassportStrategy(
 ) {
   constructor(configService: ConfigService) {
     const clientID = configService.get<string>('FACEBOOK_APP_ID')?.trim();
-    const clientSecret = configService.get<string>('FACEBOOK_APP_SECRET')?.trim();
+    const clientSecret = configService
+      .get<string>('FACEBOOK_APP_SECRET')
+      ?.trim();
     if (!clientID || !clientSecret) {
       console.warn(
         '[Auth] Facebook OAuth desativado: defina FACEBOOK_APP_ID e FACEBOOK_APP_SECRET para habilitar POST /auth/facebook.',
@@ -67,4 +69,3 @@ export class FacebookStrategy extends PassportStrategy(
     }
   }
 }
-

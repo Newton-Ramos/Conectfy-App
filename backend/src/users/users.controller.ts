@@ -53,7 +53,10 @@ export class UsersController {
     @Request() req,
     @Param('contactId', ParseIntPipe) contactId: number,
   ) {
-    return this.usersService.findContactDetailForViewer(req.user.userId, contactId);
+    return this.usersService.findContactDetailForViewer(
+      req.user.userId,
+      contactId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -80,10 +83,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateData: any,
-  ) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() updateData: any) {
     return this.usersService.update(id, updateData);
   }
 
@@ -101,7 +101,11 @@ export class UsersController {
     data: UpdateContactDetailsDto,
     @Request() req,
   ) {
-    return this.usersService.updateContactDetails(req.user.userId, contactId, data);
+    return this.usersService.updateContactDetails(
+      req.user.userId,
+      contactId,
+      data,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

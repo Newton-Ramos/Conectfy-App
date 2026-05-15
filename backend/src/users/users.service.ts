@@ -42,11 +42,14 @@ export class UsersService {
 
     const hoje = new Date();
     if (nascimento.getTime() > hoje.getTime()) {
-      throw new BadRequestException('Data de nascimento não pode ser no futuro');
+      throw new BadRequestException(
+        'Data de nascimento não pode ser no futuro',
+      );
     }
 
     const idadeAnos =
-      (hoje.getTime() - nascimento.getTime()) / (1000 * 60 * 60 * 24 * 365.2425);
+      (hoje.getTime() - nascimento.getTime()) /
+      (1000 * 60 * 60 * 24 * 365.2425);
 
     if (idadeAnos > 120) {
       throw new BadRequestException('Data de nascimento inválida');
@@ -99,15 +102,21 @@ export class UsersService {
   }): Promise<User> {
     const emailNorm = data.email.trim().toLowerCase();
     if (data.googleId) {
-      const byG = await this.repo.findOne({ where: { googleId: data.googleId } });
+      const byG = await this.repo.findOne({
+        where: { googleId: data.googleId },
+      });
       if (byG) return byG;
     }
     if (data.facebookId) {
-      const byF = await this.repo.findOne({ where: { facebookId: data.facebookId } });
+      const byF = await this.repo.findOne({
+        where: { facebookId: data.facebookId },
+      });
       if (byF) return byF;
     }
     if (data.instagramId) {
-      const byI = await this.repo.findOne({ where: { instagramId: data.instagramId } });
+      const byI = await this.repo.findOne({
+        where: { instagramId: data.instagramId },
+      });
       if (byI) return byI;
     }
 
@@ -259,7 +268,9 @@ export class UsersService {
       }
       const hoje = new Date();
       if (d.getTime() > hoje.getTime()) {
-        throw new BadRequestException('Data de nascimento não pode ser no futuro');
+        throw new BadRequestException(
+          'Data de nascimento não pode ser no futuro',
+        );
       }
       patch.dataNascimento = d;
     }
@@ -272,14 +283,16 @@ export class UsersService {
       patch.cep = cep;
     }
 
-    if (dto.logradouro !== undefined) patch.logradouro = dto.logradouro || undefined;
+    if (dto.logradouro !== undefined)
+      patch.logradouro = dto.logradouro || undefined;
     if (dto.numero !== undefined) patch.numero = dto.numero || undefined;
-    if (dto.complemento !== undefined) patch.complemento = dto.complemento || undefined;
+    if (dto.complemento !== undefined)
+      patch.complemento = dto.complemento || undefined;
     if (dto.bairro !== undefined) patch.bairro = dto.bairro || undefined;
     if (dto.cidade !== undefined) patch.cidade = dto.cidade || undefined;
     if (dto.uf !== undefined) patch.uf = dto.uf || undefined;
 
-    await this.repo.update(userId, patch as any);
+    await this.repo.update(userId, patch);
     return this.findOne(userId);
   }
 
@@ -343,7 +356,9 @@ export class UsersService {
       throw new BadRequestException('Token inválido');
     }
     if (user.passwordResetExpires.getTime() < Date.now()) {
-      throw new BadRequestException('Token expirado — solicite nova recuperação');
+      throw new BadRequestException(
+        'Token expirado — solicite nova recuperação',
+      );
     }
     user.senha = await bcrypt.hash(novaSenha, 10);
     user.passwordResetToken = null;

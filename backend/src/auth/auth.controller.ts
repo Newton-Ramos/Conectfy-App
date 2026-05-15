@@ -74,7 +74,9 @@ export class AuthController {
 
   @Post('oauth/google-access')
   @HttpCode(HttpStatus.OK)
-  async oauthGoogleAccess(@Body(new ValidationPipe()) dto: OAuthGoogleAccessDto) {
+  async oauthGoogleAccess(
+    @Body(new ValidationPipe()) dto: OAuthGoogleAccessDto,
+  ) {
     return this.authService.loginWithGoogleAccessToken(dto.accessToken);
   }
 
@@ -90,7 +92,10 @@ export class AuthController {
   async oauthFacebookComplete(
     @Body(new ValidationPipe()) dto: FacebookOAuthCodeDto,
   ) {
-    return this.authService.completeFacebookOAuthCode(dto.code, dto.redirectUri);
+    return this.authService.completeFacebookOAuthCode(
+      dto.code,
+      dto.redirectUri,
+    );
   }
 
   @Post('oauth/instagram')
@@ -104,6 +109,9 @@ export class AuthController {
   async oauthInstagramComplete(
     @Body(new ValidationPipe()) dto: InstagramOAuthCodeDto,
   ) {
-    return this.authService.completeInstagramOAuthCode(dto.code, dto.redirectUri);
+    return this.authService.completeInstagramOAuthCode(
+      dto.code,
+      dto.redirectUri,
+    );
   }
 }

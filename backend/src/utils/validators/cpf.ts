@@ -25,4 +25,3 @@ export function isValidCpf(raw: string): boolean {
 
   return true;
 }
-

@@ -138,7 +138,10 @@ export class AuthService {
   }
 
   async resetPassword(token: string, novaSenha: string) {
-    const user = await this.usersService.completePasswordReset(token, novaSenha);
+    const user = await this.usersService.completePasswordReset(
+      token,
+      novaSenha,
+    );
     return this.issueJwtPayload(user);
   }
 
@@ -146,7 +149,9 @@ export class AuthService {
   async loginWithGoogleIdToken(idToken: string) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
-      throw new BadRequestException('Login Google não configurado (GOOGLE_CLIENT_ID)');
+      throw new BadRequestException(
+        'Login Google não configurado (GOOGLE_CLIENT_ID)',
+      );
     }
     const extra = [
       process.env.GOOGLE_IOS_CLIENT_ID,
@@ -181,7 +186,9 @@ export class AuthService {
       name?: string;
     };
     if (!data.sub || !data.email) {
-      throw new UnauthorizedException('Google não retornou e-mail ou identificador');
+      throw new UnauthorizedException(
+        'Google não retornou e-mail ou identificador',
+      );
     }
     const user = await this.usersService.createOrLinkOAuth({
       email: data.email.toLowerCase(),
@@ -208,8 +215,7 @@ export class AuthService {
       throw new UnauthorizedException('Resposta inválida do Facebook');
     }
     const email =
-      data.email?.toLowerCase() ??
-      `fb_${data.id}@facebook.oauth.conectfy`;
+      data.email?.toLowerCase() ?? `fb_${data.id}@facebook.oauth.conectfy`;
     const user = await this.usersService.createOrLinkOAuth({
       email,
       nome: data.name ?? `Facebook ${data.id}`,
@@ -231,9 +237,14 @@ export class AuthService {
       `&client_secret=${encodeURIComponent(secret)}` +
       `&code=${encodeURIComponent(code)}`;
     const res = await fetch(tokenUrl);
-    const json = (await res.json()) as { access_token?: string; error?: { message?: string } };
+    const json = (await res.json()) as {
+      access_token?: string;
+      error?: { message?: string };
+    };
     if (json.error?.message || !json.access_token) {
-      throw new UnauthorizedException(json.error?.message ?? 'Código Facebook inválido');
+      throw new UnauthorizedException(
+        json.error?.message ?? 'Código Facebook inválido',
+      );
     }
     return this.loginWithFacebookAccessToken(json.access_token);
   }

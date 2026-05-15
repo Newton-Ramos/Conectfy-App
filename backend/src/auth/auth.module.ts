@@ -18,8 +18,9 @@ import { MailService } from '../mail/mail.service';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const secret = configService.get<string>('JWT_SECRET');
-        const expiresIn = (configService.get<string>('JWT_EXPIRES_IN')?.trim() ||
-          '7d') as SignOptions['expiresIn'];
+        const expiresIn = (configService
+          .get<string>('JWT_EXPIRES_IN')
+          ?.trim() || '7d') as SignOptions['expiresIn'];
         return {
           secret,
           signOptions: { expiresIn },
