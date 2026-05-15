@@ -1,13 +1,12 @@
 BUILD:
 npm install && npm run build
 
-START (recomendado — roda migrations antes de subir):
+START:
 npm start
 
-Alternativa equivalente:
-npm run migration:run:prod && node dist/src/main.js
+(Migrations rodam na subida do Nest via migrationsRun em produção.)
 
-RELEASE (opcional; migrations também rodam via migrationsRun e npm start):
+RELEASE (opcional, se quiser rodar migrations antes do start):
 npm run migration:run:prod
 
 VARIÁVEIS:
