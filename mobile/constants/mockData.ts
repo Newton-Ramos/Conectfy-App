@@ -9,6 +9,14 @@
  */
 export const MOCK_OWNER_EMAIL = 'admin@admin.com' as const;
 
+/**
+ * Cenários mock (`backend`: `npm run seed:mock-scenarios`). Senha das contas: `demo123`.
+ * - admin@admin.com — demo completo (seed:demo-tags)
+ * - raquel@mock.conectfy.local — vazio
+ * - marcos, juliana, pedro, camila, lucas @mock.conectfy.local — painéis distintos
+ */
+export const MOCK_SCENARIO_PASSWORD_HINT = 'demo123' as const;
+
 export type DemoCircleTag =
   | 'Família'
   | 'Trabalho'

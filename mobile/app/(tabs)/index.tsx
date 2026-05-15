@@ -19,10 +19,12 @@ import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { notificationsApi, type NotificationRow } from '@/api/client';
+import { circlesApi, notificationsApi, type CircleSummary, type NotificationRow } from '@/api/client';
 import { useAuth } from '@/contexts/auth-context';
 import { BRAND_GRADIENT_COLORS, BRAND_TEAL_DEEP, LOGO_IMAGE, SLOGAN_UPPER } from '@/constants/brand';
+import { circleAccentSolid, circleIconBackdrop } from '@/constants/circles';
 import { NetworkMotif } from '@/components/brand/NetworkMotif';
+import { isDemoOwnerEmail, isRaquelEmail } from '@/lib/demo-owner';
 
 const BRAND = BRAND_TEAL_DEEP;
 const PAGE_BG = '#f8fafc';
@@ -34,6 +36,10 @@ const GUTTER = 16;
 const SEARCH_HALF_OVERLAP = 28;
 /** Puxa o corpo para perto da busca (elimina faixa branca vazia). */
 const BODY_PULLUP = 30;
+/** Altura útil da barra de busca flutuante (minHeight + margem inferior). */
+const SEARCH_BAR_HEIGHT = 54;
+/** Espaço no topo do scroll para o título não ficar atrás da busca. */
+const SCROLL_TOP_INSET = SEARCH_BAR_HEIGHT - BODY_PULLUP + 12;
 
 /** Cards de círculo: fundo colorido suave em todo o chip (sem “quadrado branco”). */
 const CIRCLE_CHIPS: {
@@ -73,6 +79,46 @@ const CIRCLE_CHIPS: {
   },
 ];
 
+type HomeCircleChip = {
+  key: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  accent: string;
+  cardBg: string;
+  iconBg: string;
+  pessoas?: number;
+};
+
+const CHIP_PRESET = Object.fromEntries(CIRCLE_CHIPS.map((c) => [c.key, c]));
+
+function circleIconName(icon: string): React.ComponentProps<typeof MaterialIcons>['name'] {
+  const map: Record<string, React.ComponentProps<typeof MaterialIcons>['name']> = {
+    home: 'home',
+    work: 'work',
+    favorite: 'favorite',
+    badge: 'badge',
+    'sports-soccer': 'sports-soccer',
+    school: 'school',
+    label: 'label',
+  };
+  return map[icon] ?? 'label';
+}
+
+function homeChipFromSummary(c: CircleSummary): HomeCircleChip {
+  const preset = CHIP_PRESET[c.key];
+  if (preset) {
+    return { ...preset, pessoas: c.pessoas };
+  }
+  const accent = circleAccentSolid(c.key);
+  return {
+    key: c.key,
+    icon: circleIconName(c.icon),
+    accent,
+    cardBg: circleIconBackdrop(c.key, 0.12),
+    iconBg: circleIconBackdrop(c.key, 0.22),
+    pessoas: c.pessoas,
+  };
+}
+
 function pickTimelineIcon(n: NotificationRow): {
   name: React.ComponentProps<typeof MaterialIcons>['name'];
   color: string;
@@ -106,6 +152,10 @@ function pickTimelineIcon(n: NotificationRow): {
     return { name: 'event', color: BRAND_TEAL_DEEP, bubble: '#d1fae5' };
   }
 
+  if (k === 'mensagem') {
+    return { name: 'chat-bubble', color: '#0369a1', bubble: '#e0f2fe' };
+  }
+
   return { name: 'notifications', color: SUBTLE, bubble: '#f1f5f9' };
 }
 
@@ -131,9 +181,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isWide = width >= 420;
-  const { signOut } = useAuth();
+  const { signOut, user, isReady: authReady } = useAuth();
+  const isDemoOwner = isDemoOwnerEmail(user?.email);
+  const isRaquel = isRaquelEmail(user?.email);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<NotificationRow[]>([]);
+  const [userCircles, setUserCircles] = useState<CircleSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -143,21 +196,33 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await notificationsApi.list();
-      setItems(Array.isArray(res.data) ? res.data : []);
+      const [notifRes, circlesRes] = await Promise.all([
+        notificationsApi.list(),
+        isDemoOwner ? Promise.resolve(null) : circlesApi.summary(),
+      ]);
+      setItems(Array.isArray(notifRes.data) ? notifRes.data : []);
+      setUserCircles(
+        circlesRes && Array.isArray(circlesRes.data.circles) ? circlesRes.data.circles : [],
+      );
     } catch {
       await signOut();
       router.replace('/(auth)/welcome' as any);
     } finally {
       setLoading(false);
     }
-  }, [router, signOut]);
+  }, [router, signOut, isDemoOwner, user?.id, user?.email]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!authReady) return;
       load();
-    }, [load]),
+    }, [load, authReady]),
   );
+
+  const circleChips = useMemo((): HomeCircleChip[] => {
+    if (isDemoOwner) return CIRCLE_CHIPS;
+    return userCircles.map(homeChipFromSummary);
+  }, [isDemoOwner, userCircles]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -174,9 +239,16 @@ export default function HomeScreen() {
   const ontem = filteredItems.filter((n) => n.grupo === 'ontem');
   const rest = filteredItems.filter((n) => n.grupo !== 'hoje' && n.grupo !== 'ontem');
 
-  /** Badge no sino: até 9 itens mostra o número; na demo com 3 notificações aparece “3”. */
   const badgeCount = items.length > 9 ? '9+' : String(Math.max(items.length, 0));
   const showBadge = items.length > 0;
+
+  const emptyFeedNote = useMemo(() => {
+    if (searchQuery.trim()) return 'Nenhum resultado para sua busca.';
+    if (items.length > 0) return '';
+    if (isDemoOwner) return 'Nenhuma notificação no momento.';
+    if (isRaquel) return 'Seu painel está limpo. Adicione contatos quando quiser começar.';
+    return 'Nenhuma atualização no momento.';
+  }, [items.length, isDemoOwner, isRaquel, searchQuery]);
 
   const openNotification = (n: NotificationRow) => {
     setSelected(n);
@@ -344,30 +416,56 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled">
           <Text style={[styles.sectionTitle, styles.sectionFirst]}>Círculos</Text>
 
-          <View style={styles.circleRow}>
-            {CIRCLE_CHIPS.map((c) => (
+          {circleChips.length === 0 ? (
+            <View style={styles.circlesEmpty}>
+              <MaterialIcons name="hub" size={36} color={BRAND} />
+              <Text style={styles.circlesEmptyTitle}>Nenhum círculo classificado</Text>
+              <Text style={styles.circlesEmptySub}>
+                Ao adicionar contatos e marcar tags como Família ou Trabalho, seus círculos aparecem aqui.
+              </Text>
               <TouchableOpacity
-                key={c.key}
-                style={[styles.circleCard, { backgroundColor: c.cardBg }]}
+                style={styles.circlesEmptyBtn}
                 onPress={() =>
                   router.push({
-                    pathname: '/(tabs)/contacts' as any,
-                    params: { tag: c.key, backSrc: 'home' },
+                    pathname: '/(tabs)/add-contact' as any,
+                    params: { from: 'home' },
                   })
                 }
                 activeOpacity={0.9}>
-                <View style={styles.circleIconShell}>
-                  <NetworkMotif opacity={0.35} />
-                  <View style={[styles.circleIconRound, { backgroundColor: c.iconBg }]}>
-                    <MaterialIcons name={c.icon} size={26} color={c.accent} />
-                  </View>
-                </View>
-                <Text style={[styles.circleCardLabel, { color: c.accent }]} numberOfLines={2}>
-                  {c.key}
-                </Text>
+                <Text style={styles.circlesEmptyBtnText}>Adicionar primeiro contato</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          ) : (
+            <View style={[styles.circleRow, circleChips.length < 4 && styles.circleRowSparse]}>
+              {circleChips.map((c) => (
+                <TouchableOpacity
+                  key={c.key}
+                  style={[styles.circleCard, { backgroundColor: c.cardBg }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/contacts' as any,
+                      params: { tag: c.key, backSrc: 'home' },
+                    })
+                  }
+                  activeOpacity={0.9}>
+                  <View style={styles.circleIconShell}>
+                    <NetworkMotif opacity={0.35} />
+                    <View style={[styles.circleIconRound, { backgroundColor: c.iconBg }]}>
+                      <MaterialIcons name={c.icon} size={26} color={c.accent} />
+                    </View>
+                  </View>
+                  <Text style={[styles.circleCardLabel, { color: c.accent }]} numberOfLines={2}>
+                    {c.key}
+                  </Text>
+                  {!isDemoOwner && c.pessoas != null && c.pessoas > 0 ? (
+                    <Text style={[styles.circleCardCount, { color: c.accent }]}>
+                      {c.pessoas} {c.pessoas === 1 ? 'contato' : 'contatos'}
+                    </Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <Text style={styles.quickSectionLabel}>Ações rápidas</Text>
           <View style={[styles.quickRow, isWide && styles.actionRowWide]}>
@@ -397,16 +495,12 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.notifSection}>
-            <Text style={styles.sectionTitle}>Painel de Atualizações</Text>
+            <Text style={[styles.sectionTitle, styles.notifSectionTitle]}>Painel de Atualizações</Text>
             {renderGroup('Hoje', hoje)}
             {renderGroup('Ontem', ontem)}
             {rest.length > 0 ? renderGroup('Anteriores', rest) : null}
-            {filteredItems.length === 0 ? (
-              <Text style={styles.emptyNote}>
-                {items.length === 0
-                  ? 'Nenhuma notificação no momento.'
-                  : 'Nenhum resultado para sua busca.'}
-              </Text>
+            {filteredItems.length === 0 && emptyFeedNote ? (
+              <Text style={styles.emptyNote}>{emptyFeedNote}</Text>
             ) : null}
           </View>
         </ScrollView>
@@ -609,7 +703,7 @@ const styles = StyleSheet.create({
   },
   bodyScroll: { flex: 1 },
   bodyContent: {
-    paddingTop: 4,
+    paddingTop: SCROLL_TOP_INSET,
   },
   sectionTitle: {
     fontSize: 18,
@@ -628,6 +722,45 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: 8,
     marginBottom: 14,
+  },
+  circleRowSparse: {
+    justifyContent: 'flex-start',
+  },
+  circlesEmpty: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  circlesEmptyTitle: {
+    marginTop: 10,
+    fontSize: 15,
+    fontWeight: '800',
+    color: INK,
+    textAlign: 'center',
+  },
+  circlesEmptySub: {
+    marginTop: 6,
+    fontSize: 13,
+    color: SUBTLE,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  circlesEmptyBtn: {
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: BRAND_TEAL_DEEP,
+  },
+  circlesEmptyBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   circleCard: {
     flex: 1,
@@ -671,6 +804,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 15,
   },
+  circleCardCount: {
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    opacity: 0.85,
+  },
   quickSectionLabel: {
     fontSize: 13,
     fontWeight: '800',
@@ -684,7 +823,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 12,
-    marginBottom: 36,
+    marginBottom: 20,
   },
   actionRowWide: { maxWidth: 720, alignSelf: 'center', width: '100%' },
   quickCard: {
@@ -754,17 +893,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   notifSection: {
-    marginTop: 4,
+    marginTop: 0,
     paddingBottom: 8,
   },
-  groupBlock: { marginBottom: 28 },
+  notifSectionTitle: {
+    marginBottom: 8,
+  },
+  groupBlock: { marginBottom: 14 },
   groupLabel: {
     fontSize: 11,
     fontWeight: '800',
     color: SUBTLE,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   tlList: { paddingLeft: 2 },
   tlItem: {
@@ -799,7 +941,7 @@ const styles = StyleSheet.create({
   },
   tlBody: {
     flex: 1,
-    paddingBottom: 22,
+    paddingBottom: 14,
     paddingLeft: 10,
     justifyContent: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,

@@ -24,6 +24,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "npm run seed:demo-tags",
     "seed:demo-tags": "npx tsx scripts/seed-demo-contact-tags.ts",
+    "seed:mock-scenarios": "npx tsx scripts/seed-mock-user-scenarios.ts",
+    "seed:all": "npm run seed:demo-tags && npm run seed:mock-scenarios",
     "db:validate": "npx typeorm-ts-node-commonjs -d src/data-source.ts query \"SELECT 1\"",
     "migration:generate": "npm run db:validate && npx typeorm-ts-node-commonjs -d src/data-source.ts migration:generate",
     "migration:run": "npm run db:validate && npx typeorm-ts-node-commonjs -d src/data-source.ts migration:run",

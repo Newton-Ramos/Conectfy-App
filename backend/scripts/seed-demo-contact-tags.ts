@@ -16,6 +16,7 @@
 
 import 'dotenv/config';
 import { Client, type QueryResult } from 'pg';
+import { readPgClientConfig } from './pg-client-config';
 
 const DEFAULT_SEED_OWNER_EMAIL = 'admin@admin.com';
 
@@ -436,13 +437,7 @@ const MESSAGE_THREADS: { peerNome: string; lines: DemoLine[] }[] = [
 ];
 
 async function main() {
-  const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'conectfy',
-  });
+  const client = new Client(readPgClientConfig());
   await client.connect();
 
   for (const u of DEMO_EXTRA_USERS) {
