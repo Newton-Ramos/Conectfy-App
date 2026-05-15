@@ -14,7 +14,7 @@ export class Notification {
   id: number;
 
   /** null = visível para todos os usuários (demo) */
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   userId: number | null;
 
   @Column()
@@ -40,7 +40,7 @@ export class Notification {
   rsvpStatus?: 'sim' | 'nao' | null;
 
   /** Vínculo com evento do calendário (painel espelha a agenda). */
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   calendarEventId?: number | null;
 
   @CreateDateColumn()
