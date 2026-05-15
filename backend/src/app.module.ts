@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MessagesModule } from './messages/messages.module'; // 1. Importação necessária
 import { NotificationsModule } from './notifications/notifications.module';
 import { CirclesModule } from './circles/circles.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { readTypeOrmConnectionOptions } from './typeorm-env';
 
 @Module({
@@ -46,6 +47,7 @@ import { readTypeOrmConnectionOptions } from './typeorm-env';
     MessagesModule, // 2. Adicione aqui para o NestJS ativar o chat
     NotificationsModule,
     CirclesModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],
