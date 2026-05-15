@@ -5,14 +5,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { hrefCalendarBack } from '@/lib/detail-screen-back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  loadCalendarEvents,
-  saveCalendarEvents,
-  type LocalCalendarEvent,
-} from '@/lib/calendar-events';
+import { calendarApi, type CalendarEventRow } from '@/api/client';
 import { APP_SURFACE_BG, BRAND_ACCENT, BRAND_GRADIENT_COLORS } from '@/constants/brand';
-
-export type { LocalCalendarEvent };
 
 const BRAND = BRAND_ACCENT;
 const BG = APP_SURFACE_BG;
@@ -23,12 +17,17 @@ export default function CalendarScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ backSrc?: string }>();
   const insets = useSafeAreaInsets();
-  const [items, setItems] = useState<LocalCalendarEvent[]>([]);
+  const [items, setItems] = useState<CalendarEventRow[]>([]);
 
   const refresh = useCallback(async () => {
-    const list = await loadCalendarEvents();
-    list.sort((a, b) => new Date(a.dateIso).getTime() - new Date(b.dateIso).getTime());
-    setItems(list);
+    try {
+      const res = await calendarApi.list();
+      const list = Array.isArray(res.data) ? res.data : [];
+      list.sort((a, b) => new Date(a.dateIso).getTime() - new Date(b.dateIso).getTime());
+      setItems(list);
+    } catch {
+      setItems([]);
+    }
   }, []);
 
   useFocusEffect(
@@ -45,16 +44,19 @@ export default function CalendarScreen() {
     router.push('/(tabs)/event-create' as never);
   };
 
-  const removeEv = (id: string) => {
+  const removeEv = (id: number) => {
     Alert.alert('Remover?', undefined, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Remover',
         style: 'destructive',
         onPress: async () => {
-          const next = items.filter((e) => e.id !== id);
-          await saveCalendarEvents(next);
-          await refresh();
+          try {
+            await calendarApi.remove(id);
+            await refresh();
+          } catch {
+            Alert.alert('Erro', 'Não foi possível remover o evento.');
+          }
         },
       },
     ]);
@@ -87,7 +89,7 @@ export default function CalendarScreen() {
 
       <FlatList
         data={items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listPad}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>

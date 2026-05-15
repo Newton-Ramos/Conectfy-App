@@ -27,11 +27,7 @@ import {
 } from '@/constants/brand';
 import { BrandSparkles } from '@/components/brand/BrandSparkles';
 import { NetworkMotif } from '@/components/brand/NetworkMotif';
-import {
-  loadCalendarEvents,
-  saveCalendarEvents,
-  type LocalCalendarEvent,
-} from '@/lib/calendar-events';
+import { calendarApi } from '@/api/client';
 
 const INK = '#0f172a';
 const MUTED = '#64748b';
@@ -113,15 +109,16 @@ export default function EventCreateScreen() {
       Alert.alert('Data inválida', 'Ajuste data e horário.');
       return;
     }
-    const ev: LocalCalendarEvent = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      title: t,
-      notes: notes.trim(),
-      dateIso: when.toISOString(),
-    };
-    const existing = await loadCalendarEvents();
-    await saveCalendarEvents([...existing, ev]);
-    router.navigate(CALENDAR_SCREEN);
+    try {
+      await calendarApi.create({
+        title: t,
+        notes: notes.trim(),
+        dateIso: when.toISOString(),
+      });
+      router.navigate(CALENDAR_SCREEN);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível salvar o evento.');
+    }
   }, [title, notes, when, router]);
 
   return (

@@ -262,6 +262,22 @@ export const circlesApi = {
   summary: () => api.get<CirclesResponse>('/circles'),
 };
 
+export type CalendarEventRow = {
+  id: number;
+  title: string;
+  notes: string;
+  dateIso: string;
+};
+
+export const calendarApi = {
+  list: () => api.get<CalendarEventRow[]>('/calendar/events'),
+
+  create: (body: { title: string; notes?: string; dateIso: string }) =>
+    api.post<CalendarEventRow>('/calendar/events', body),
+
+  remove: (id: number) => api.delete(`/calendar/events/${id}`),
+};
+
 export const getUserById = (id: number) => api.get(`/users/${id}`);
 
 export type ChatReaction = { userId: number; emoji: string };

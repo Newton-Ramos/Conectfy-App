@@ -303,7 +303,13 @@ export default function HomeScreen() {
           </Text>
           <Text style={styles.tlHint}>
             {formatFeedRelative(n.createdAt)} ·{' '}
-            {n.kind === 'evento' ? 'Toque para detalhes e presença' : 'Toque para ver'}
+            {n.kind === 'evento'
+              ? 'Toque para detalhes e presença'
+              : n.kind === 'aniversario'
+                ? 'Lembrete de aniversário'
+                : n.kind === 'sistema'
+                  ? 'Atualização de círculo ou grupo'
+                  : 'Toque para ver detalhes'}
           </Text>
         </TouchableOpacity>
       </View>
