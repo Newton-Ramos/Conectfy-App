@@ -97,7 +97,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const receiverSid = this.activeSockets.get(data.receiverId);
       if (receiverSid) {
         this.server.to(receiverSid).emit('receive_message', msg);
-        await this.messagesService.markDeliveredForReceiver([msg.id], data.receiverId);
+        await this.messagesService.markDeliveredForReceiver(
+          [msg.id],
+          data.receiverId,
+        );
       }
 
       client.emit('message_sent', msg);
@@ -116,7 +119,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const receiverId = (client.data as { userId?: number }).userId;
     if (!receiverId || !body?.messageIds?.length) return { ok: false };
-    const res = await this.messagesService.markDeliveredForReceiver(body.messageIds, receiverId);
+    const res = await this.messagesService.markDeliveredForReceiver(
+      body.messageIds,
+      receiverId,
+    );
     return { ok: true, ...res };
   }
 

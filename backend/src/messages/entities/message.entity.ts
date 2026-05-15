@@ -27,7 +27,11 @@ export enum MessageMediaType {
 }
 
 @Entity('messages')
-@Index(['senderId', 'receiverId', 'createdAt'])
+@Index('IDX_messages_sender_receiver_created', [
+  'senderId',
+  'receiverId',
+  'createdAt',
+])
 export class Message {
   @PrimaryGeneratedColumn()
   id: number;
@@ -44,6 +48,7 @@ export class Message {
   @Column({
     type: 'enum',
     enum: MessageStatus,
+    enumName: 'messages_status_enum',
     default: MessageStatus.SENT,
   })
   status: MessageStatus;
@@ -80,6 +85,7 @@ export class Message {
   @Column({
     type: 'enum',
     enum: MessageMediaType,
+    enumName: 'messages_media_type_enum',
     default: MessageMediaType.TEXT,
   })
   mediaType: MessageMediaType;

@@ -59,8 +59,8 @@ export class MessagesService {
 
     const mt =
       data.mediaType != null &&
-      Object.values(MessageMediaType).includes(data.mediaType as MessageMediaType)
-        ? (data.mediaType as MessageMediaType)
+      Object.values(MessageMediaType).includes(data.mediaType)
+        ? data.mediaType
         : MessageMediaType.TEXT;
 
     const msg = this.messageRepository.create({
@@ -69,9 +69,7 @@ export class MessagesService {
       content: data.content,
       status: MessageStatus.SENT,
       parent:
-        data.parentMessageId != null
-          ? ({ id: data.parentMessageId } as Message)
-          : null,
+        data.parentMessageId != null ? { id: data.parentMessageId } : null,
       mediaType: mt,
       mediaUrl: data.mediaUrl ?? null,
       mediaDurationSec: data.mediaDurationSec ?? null,
@@ -115,11 +113,16 @@ export class MessagesService {
   async getActiveConversations(userId: number) {
     const interactions = await this.messageRepository
       .createQueryBuilder('message')
-      .select('DISTINCT CASE WHEN "senderId" = :id THEN "receiverId" ELSE "senderId" END', 'contactId')
+      .select(
+        'DISTINCT CASE WHEN "senderId" = :id THEN "receiverId" ELSE "senderId" END',
+        'contactId',
+      )
       .where('"senderId" = :id OR "receiverId" = :id', { id: userId })
       .getRawMany();
 
-    const contactIds = interactions.map((i) => Number(i.contactId)).filter(Number.isFinite);
+    const contactIds = interactions
+      .map((i) => Number(i.contactId))
+      .filter(Number.isFinite);
     if (contactIds.length === 0) return [];
 
     const contacts = await this.userRepository
@@ -213,7 +216,9 @@ export class MessagesService {
     const page = await qb.getMany();
     const chronological = [...page].reverse();
     const enriched = await this.attachReactions(chronological);
-    const oldestId = chronological.length ? Math.min(...chronological.map((m) => m.id)) : null;
+    const oldestId = chronological.length
+      ? Math.min(...chronological.map((m) => m.id))
+      : null;
     return {
       messages: enriched,
       nextBeforeId: oldestId,
@@ -221,7 +226,9 @@ export class MessagesService {
     };
   }
 
-  private async attachReactions(msgs: Message[]): Promise<MessageWithReactions[]> {
+  private async attachReactions(
+    msgs: Message[],
+  ): Promise<MessageWithReactions[]> {
     if (!msgs.length) return [];
     const ids = msgs.map((m) => m.id);
     const reactions = await this.reactionRepository.find({
@@ -234,17 +241,20 @@ export class MessagesService {
     }
     return msgs.map((m) =>
       Object.assign(m, { reactions: map.get(m.id) ?? [] }),
-    ) as MessageWithReactions[];
+    );
   }
 
   async update(id: number, senderId: number, newContent: string) {
     const message = await this.messageRepository.findOne({ where: { id } });
     if (!message) throw new NotFoundException('Mensagem não encontrada');
-    if (message.senderId !== senderId) throw new ForbiddenException('Ação não permitida');
+    if (message.senderId !== senderId)
+      throw new ForbiddenException('Ação não permitida');
     if (message.deletedAt) throw new BadRequestException('Mensagem apagada');
     const age = Date.now() - new Date(message.createdAt).getTime();
     if (age > EDIT_WINDOW_MS) {
-      throw new BadRequestException('Só é possível editar até 15 minutos após o envio');
+      throw new BadRequestException(
+        'Só é possível editar até 15 minutos após o envio',
+      );
     }
 
     message.content = newContent;
@@ -255,7 +265,8 @@ export class MessagesService {
   async softDelete(id: number, requesterId: number) {
     const message = await this.messageRepository.findOne({ where: { id } });
     if (!message) throw new NotFoundException('Mensagem não encontrada');
-    if (message.senderId !== requesterId) throw new ForbiddenException('Ação não permitida');
+    if (message.senderId !== requesterId)
+      throw new ForbiddenException('Ação não permitida');
     message.deletedAt = new Date();
     await this.messageRepository.save(message);
     return { success: true };
@@ -265,7 +276,8 @@ export class MessagesService {
   async remove(id: number, senderId: number) {
     const message = await this.messageRepository.findOne({ where: { id } });
     if (!message) throw new NotFoundException('Mensagem não encontrada');
-    if (message.senderId !== senderId) throw new ForbiddenException('Ação não permitida');
+    if (message.senderId !== senderId)
+      throw new ForbiddenException('Ação não permitida');
 
     return this.messageRepository.remove(message);
   }
@@ -287,10 +299,15 @@ export class MessagesService {
   }
 
   async addReaction(messageId: number, userId: number, emoji: string) {
-    const msg = await this.messageRepository.findOne({ where: { id: messageId } });
-    if (!msg || msg.deletedAt) throw new NotFoundException('Mensagem não encontrada');
+    const msg = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
+    if (!msg || msg.deletedAt)
+      throw new NotFoundException('Mensagem não encontrada');
 
-    let row = await this.reactionRepository.findOne({ where: { messageId, userId } });
+    let row = await this.reactionRepository.findOne({
+      where: { messageId, userId },
+    });
     if (row) {
       row.emoji = emoji;
       await this.reactionRepository.save(row);

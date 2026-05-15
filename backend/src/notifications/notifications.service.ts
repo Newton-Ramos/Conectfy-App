@@ -94,7 +94,9 @@ export class NotificationsService implements OnModuleInit {
 
   async setRsvp(viewerId: number, id: number, status: 'sim' | 'nao') {
     if (id < 0) {
-      throw new BadRequestException('Esta notificação não aceita confirmação de presença');
+      throw new BadRequestException(
+        'Esta notificação não aceita confirmação de presença',
+      );
     }
     const n = await this.repo.findOne({ where: { id } });
     if (!n) throw new NotFoundException('Notificação não encontrada');

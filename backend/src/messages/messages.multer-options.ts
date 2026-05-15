@@ -11,14 +11,20 @@ import { uploadSubdir } from './messages-upload.helpers';
  * Cast único no argumento de `diskStorage` para o compilador não exigir tipos globais do middleware legado.
  */
 function diskStorageLoose(options: {
-  destination: string | ((req: unknown, file: unknown, cb: (error: Error | null, destination: string) => void) => void);
+  destination:
+    | string
+    | ((
+        req: unknown,
+        file: unknown,
+        cb: (error: Error | null, destination: string) => void,
+      ) => void);
   filename?: (
     req: unknown,
     file: unknown,
     cb: (error: Error | null, filename: string) => void,
   ) => void;
 }): MulterOptions['storage'] {
-  return diskStorage(options as never);
+  return diskStorage(options);
 }
 
 export const voiceUploadMulterOptions: MulterOptions = {

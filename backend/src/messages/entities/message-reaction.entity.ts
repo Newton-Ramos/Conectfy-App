@@ -1,7 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
 
 @Entity('message_reactions')
-@Index(['messageId', 'userId'], { unique: true })
+@Index('UQ_message_reactions_message_user', ['messageId', 'userId'], {
+  unique: true,
+})
 export class MessageReaction {
   @PrimaryGeneratedColumn()
   id: number;

@@ -59,8 +59,9 @@ export class CirclesService {
       .getCount();
 
     /** Contagem por tag via unnest do JSONB (uma linha de contato pode ter várias tags). */
-    const rawCounts: { tag: string; cnt: string | number }[] = await this.contactRepo.query(
-      `
+    const rawCounts: { tag: string; cnt: string | number }[] =
+      await this.contactRepo.query(
+        `
       SELECT j.elem AS tag, COUNT(*)::int AS cnt
       FROM user_contacts uc
       CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(uc.tags, '[]'::jsonb)) AS j(elem)
@@ -69,8 +70,8 @@ export class CirclesService {
       GROUP BY j.elem
       ORDER BY cnt DESC, tag ASC
       `,
-      [viewerId],
-    );
+        [viewerId],
+      );
 
     const tagToCount = new Map<string, number>();
     for (const row of rawCounts) {
@@ -84,7 +85,9 @@ export class CirclesService {
       maisPopuloso = rawCounts[0].tag;
     }
 
-    const predefinedKeys = new Set<string>(PREDEFINED_CIRCLES.map((c) => c.key));
+    const predefinedKeys = new Set<string>(
+      PREDEFINED_CIRCLES.map((c) => c.key),
+    );
 
     const circles: {
       key: string;

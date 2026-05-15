@@ -44,10 +44,9 @@ export class MailService {
       this.config.get<string>('MAIL_FROM')?.trim() ||
       this.config.get<string>('SMTP_USER')?.trim() ||
       'no-reply@conectfy.local';
-    const appUrl = (this.config.get<string>('APP_PUBLIC_URL') || 'http://localhost:3000').replace(
-      /\/$/,
-      '',
-    );
+    const appUrl = (
+      this.config.get<string>('APP_PUBLIC_URL') || 'http://localhost:3000'
+    ).replace(/\/$/, '');
     const link = `${appUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     try {

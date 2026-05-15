@@ -5,7 +5,9 @@ export function uploadSubdir(mimetype: string): string {
   if (mimetype.startsWith('video/')) return 'videos';
   if (
     mimetype === 'application/pdf' ||
-    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(mimetype)
+    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(
+      mimetype,
+    )
   ) {
     return 'documents';
   }
@@ -17,7 +19,9 @@ export function inferMediaTypeFromMime(mimetype: string): MessageMediaType {
   if (mimetype.startsWith('video/')) return MessageMediaType.VIDEO;
   if (
     mimetype === 'application/pdf' ||
-    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(mimetype)
+    /wordprocessingml|spreadsheetml|presentationml|msword|vnd\.openxmlformats/i.test(
+      mimetype,
+    )
   ) {
     return MessageMediaType.DOCUMENT;
   }

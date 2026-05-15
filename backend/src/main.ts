@@ -49,7 +49,9 @@ async function bootstrap() {
   }
   await app.listen(port, '0.0.0.0');
   const logger = new Logger('Bootstrap');
-  logger.log(`HTTP em 0.0.0.0:${port} (NODE_ENV=${process.env.NODE_ENV ?? 'undefined'})`);
+  logger.log(
+    `HTTP em 0.0.0.0:${port} (NODE_ENV=${process.env.NODE_ENV ?? 'undefined'})`,
+  );
 }
 
 bootstrap().catch((err: unknown) => {

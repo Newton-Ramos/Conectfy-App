@@ -21,8 +21,14 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageHistoryQueryDto } from './dto/message-history-query.dto';
 import { AddReactionDto } from './dto/reaction.dto';
 import type { AuthenticatedRequest, UploadFile } from './types/messages.types';
-import { inferMediaTypeFromMime, uploadSubdir } from './messages-upload.helpers';
-import { mediaUploadMulterOptions, voiceUploadMulterOptions } from './messages.multer-options';
+import {
+  inferMediaTypeFromMime,
+  uploadSubdir,
+} from './messages-upload.helpers';
+import {
+  mediaUploadMulterOptions,
+  voiceUploadMulterOptions,
+} from './messages.multer-options';
 
 @UseGuards(JwtAuthGuard)
 @Controller('messages')
@@ -30,7 +36,10 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  create(@Body() data: CreateMessageDto, @NestRequestDecorator() req: AuthenticatedRequest) {
+  create(
+    @Body() data: CreateMessageDto,
+    @NestRequestDecorator() req: AuthenticatedRequest,
+  ) {
     return this.messagesService.create({
       senderId: req.user.userId,
       receiverId: data.receiverId,
@@ -116,7 +125,11 @@ export class MessagesController {
     @Body() dto: AddReactionDto,
     @NestRequestDecorator() req: AuthenticatedRequest,
   ) {
-    return this.messagesService.addReaction(messageId, req.user.userId, dto.emoji);
+    return this.messagesService.addReaction(
+      messageId,
+      req.user.userId,
+      dto.emoji,
+    );
   }
 
   @Delete(':id/reactions')
@@ -138,7 +151,10 @@ export class MessagesController {
 
   /** Soft delete — “Apagar para todos” local ao remetente neste MVP */
   @Delete(':id')
-  softDelete(@Param('id', ParseIntPipe) id: number, @NestRequestDecorator() req: AuthenticatedRequest) {
+  softDelete(
+    @Param('id', ParseIntPipe) id: number,
+    @NestRequestDecorator() req: AuthenticatedRequest,
+  ) {
     return this.messagesService.softDelete(id, req.user.userId);
   }
 }
