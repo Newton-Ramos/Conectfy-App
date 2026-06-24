@@ -12,6 +12,10 @@ export class UserContact {
   @Column({ nullable: true })
   telefone: string;
 
+  /** E-mail do contato como anotação do usuário (independente da conta da pessoa). */
+  @Column({ nullable: true })
+  email: string;
+
   @Column({ type: 'text', nullable: true })
   nota: string;
 

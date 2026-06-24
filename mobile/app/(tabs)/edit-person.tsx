@@ -41,10 +41,18 @@ export default function EditPersonScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ userId?: string; from?: string; peerName?: string }>();
+  // useLocalSearchParams retorna um objeto novo a cada render; extraímos os
+  // valores primitivos para usar como dependências estáveis (evita loop de render).
+  const firstParam = (v: string | string[] | undefined) =>
+    Array.isArray(v) ? v[0] : v;
+  const userIdParam = firstParam(params.userId);
+  const fromParam = firstParam(params.from);
+  const peerNameParam = firstParam(params.peerName);
+
   const targetId = useMemo(() => {
-    const n = params.userId ? Number(params.userId) : NaN;
+    const n = userIdParam ? Number(userIdParam) : NaN;
     return Number.isFinite(n) ? n : null;
-  }, [params.userId]);
+  }, [userIdParam]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,8 +79,14 @@ export default function EditPersonScreen() {
   const isSelf = targetId === null || (myId !== null && targetId === myId);
 
   const leaveScreen = useCallback(() => {
-    router.navigate(hrefAfterEditPerson(params as Record<string, string | string[] | undefined>));
-  }, [router, params]);
+    router.navigate(
+      hrefAfterEditPerson({
+        from: fromParam,
+        userId: userIdParam,
+        peerName: peerNameParam,
+      }),
+    );
+  }, [router, fromParam, userIdParam, peerNameParam]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,7 +135,7 @@ export default function EditPersonScreen() {
           setBlocked(false);
         } else {
           setNome(row.nome ?? '');
-          setEmailOther(row.email ?? '');
+          setEmailOther(row.contactEmail ?? row.email ?? '');
           setLocalidade(row.localidade ?? '');
           setNotaContato(row.contactNote ?? '');
           setTelefone(maskPhoneBr(String(row.contactPhone ?? '')));
@@ -185,8 +199,14 @@ export default function EditPersonScreen() {
           Alert.alert('Erro', telErr);
           return;
         }
+        const emailTrim = emailOther.trim();
+        if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+          Alert.alert('Erro', 'E-mail inválido');
+          return;
+        }
         await usersApi.updateContactDetails(targetId, {
           telefone: telefone.trim() || undefined,
+          email: emailTrim || undefined,
           nota: notaContato || undefined,
         });
         Alert.alert('Salvo', 'Contato atualizado');
@@ -234,8 +254,6 @@ export default function EditPersonScreen() {
           <>
             <Text style={styles.label}>Nome</Text>
             <Text style={styles.readonly}>{nome}</Text>
-            <Text style={styles.label}>E-mail</Text>
-            <Text style={styles.readonly}>{emailOther}</Text>
             {!!localidade && (
               <>
                 <Text style={styles.label}>Localidade</Text>
@@ -341,6 +359,15 @@ export default function EditPersonScreen() {
 
         {!isSelf && targetId && (
           <>
+            <Text style={styles.label}>E-mail (anotação)</Text>
+            <TextInput
+              style={styles.input}
+              value={emailOther}
+              onChangeText={setEmailOther}
+              placeholder="email@exemplo.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
             <Text style={styles.label}>Nota do contato</Text>
             <TextInput
               style={[styles.input, styles.textarea]}

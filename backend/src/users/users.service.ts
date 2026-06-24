@@ -170,6 +170,7 @@ export class UsersService {
       email: publicUser.email,
       localidade: publicUser.localidade ?? null,
       contactPhone: meta?.telefone ?? null,
+      contactEmail: meta?.email ?? null,
       contactNote: meta?.nota ?? null,
       tags: meta?.tags ?? [],
       is_blocked: meta?.is_blocked ?? false,
@@ -201,6 +202,7 @@ export class UsersService {
         is_blocked: meta?.is_blocked ?? false,
         contactNote: meta?.nota ?? null,
         contactPhone: meta?.telefone ?? null,
+        contactEmail: meta?.email ?? null,
       };
     });
   }
@@ -422,10 +424,11 @@ export class UsersService {
   async updateContactDetails(
     userId: number,
     contactId: number,
-    data: { telefone?: string; nota?: string; tags?: string[] },
+    data: { telefone?: string; email?: string; nota?: string; tags?: string[] },
   ) {
     const row = await this.ensureContactRow(userId, contactId);
     if (data.telefone !== undefined) row.telefone = data.telefone;
+    if (data.email !== undefined) row.email = data.email;
     if (data.nota !== undefined) row.nota = data.nota;
     if (data.tags !== undefined) row.tags = data.tags;
     await this.contactRepo.save(row);

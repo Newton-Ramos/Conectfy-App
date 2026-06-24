@@ -10,7 +10,7 @@ import { MessagesModule } from './messages/messages.module'; // 1. Importação 
 import { NotificationsModule } from './notifications/notifications.module';
 import { CirclesModule } from './circles/circles.module';
 import { CalendarModule } from './calendar/calendar.module';
-import { readTypeOrmConnectionOptions } from './typeorm-env';
+import { isLocalDatabase, readTypeOrmConnectionOptions } from './typeorm-env';
 
 @Module({
   imports: [
@@ -22,16 +22,20 @@ import { readTypeOrmConnectionOptions } from './typeorm-env';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService): TypeOrmModuleOptions => {
-        const nodeEnv = config.get<string>('NODE_ENV');
+        const get = (key: string) => config.get<string>(key) ?? process.env[key];
+        const nodeEnv = get('NODE_ENV');
         const isProd = nodeEnv === 'production';
-        const syncExplicit = config.get<string>('TYPEORM_SYNC');
-        const synchronize = isProd
-          ? false
-          : syncExplicit === 'true' || syncExplicit !== 'false';
+        const syncExplicit = get('TYPEORM_SYNC');
+        const local = isLocalDatabase(get);
+        /**
+         * synchronize só roda em DEV e contra banco LOCAL. Apontar o dev para um
+         * banco remoto (ex.: Render) nunca sincroniza — evita o erro
+         * "type ... already exists" e protege os dados de produção. Em remoto,
+         * use migrations (npm run migration:run).
+         */
+        const synchronize = !isProd && local && syncExplicit !== 'false';
 
-        const connection = readTypeOrmConnectionOptions(
-          (key) => config.get<string>(key) ?? process.env[key],
-        );
+        const connection = readTypeOrmConnectionOptions(get);
 
         return {
           ...connection,

@@ -181,6 +181,15 @@ export default function ConversationsScreen() {
     }
   };
 
+  const handleMarkUnread = async (c: ConversationPreview) => {
+    try {
+      await messagesApi.markUnread(c.id);
+      await load();
+    } catch {
+      Alert.alert('Erro', 'Não foi possível marcar como não lido');
+    }
+  };
+
   const handleArchive = async (c: ConversationPreview) => {
     await archiveConversation(c.id, c.nome ?? '');
     await refreshPrefs();
@@ -219,12 +228,15 @@ export default function ConversationsScreen() {
       await refreshPrefs();
     };
 
-    const runRead = () => handleMarkRead(c);
+    const isUnread = c.unreadCount > 0;
+    const readLabel = isUnread ? 'Marcar como lido' : 'Marcar como não lido';
+    const runReadToggle = () =>
+      isUnread ? handleMarkRead(c) : handleMarkUnread(c);
     const runArchive = () => handleArchive(c);
     const runDelete = () => handleDelete(c);
 
     if (Platform.OS === 'ios') {
-      const opts = [muteLabel, 'Marcar como lido', 'Arquivar conversa', 'Excluir conversa', 'Cancelar'];
+      const opts = [muteLabel, readLabel, 'Arquivar conversa', 'Excluir conversa', 'Cancelar'];
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: opts,
@@ -234,7 +246,7 @@ export default function ConversationsScreen() {
         },
         (i) => {
           if (i === 0) void runMute();
-          else if (i === 1) void runRead();
+          else if (i === 1) void runReadToggle();
           else if (i === 2) void runArchive();
           else if (i === 3) runDelete();
         },
@@ -242,7 +254,7 @@ export default function ConversationsScreen() {
     } else {
       Alert.alert(c.nome || 'Conversa', undefined, [
         { text: muteLabel, onPress: () => void runMute() },
-        { text: 'Marcar como lido', onPress: () => void runRead() },
+        { text: readLabel, onPress: () => void runReadToggle() },
         { text: 'Arquivar conversa', onPress: () => void runArchive() },
         { text: 'Excluir conversa', style: 'destructive', onPress: () => runDelete() },
         { text: 'Cancelar', style: 'cancel' },

@@ -79,7 +79,10 @@ export function resolveMediaUrl(pathOrUrl: string | null | undefined): string | 
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  // Render (plano free) hiberna após inatividade e leva ~30-50s para acordar
+  // no primeiro request. Timeout curto fazia o app desistir antes e parecer
+  // que o servidor estava fora do ar.
+  timeout: 60000,
 });
 
 api.interceptors.request.use(
@@ -129,6 +132,7 @@ export type ContactUser = {
   is_blocked?: boolean;
   contactNote?: string | null;
   contactPhone?: string | null;
+  contactEmail?: string | null;
   localidade?: string | null;
   circulos?: string[] | null;
   afinidades?: string[] | null;
@@ -140,6 +144,7 @@ export type PeerContactProfile = {
   email: string;
   localidade?: string | null;
   contactPhone?: string | null;
+  contactEmail?: string | null;
   contactNote?: string | null;
   tags?: string[];
   is_blocked?: boolean;
@@ -241,7 +246,7 @@ export const usersApi = {
 
   updateContactDetails: (
     contactId: number,
-    data: { telefone?: string; nota?: string; tags?: string[] },
+    data: { telefone?: string; email?: string; nota?: string; tags?: string[] },
   ) => api.patch(`/users/${contactId}/details`, data),
 
   toggleBlock: (contactId: number) =>
@@ -407,6 +412,8 @@ export const messagesApi = {
   removeReaction: (messageId: number) => api.delete(`/messages/${messageId}/reactions`),
 
   markRead: (contactId: number) => api.patch(`/messages/read/${contactId}`),
+
+  markUnread: (contactId: number) => api.patch(`/messages/unread/${contactId}`),
 
   deleteConversation: (peerId: number) =>
     api.delete<{ success: boolean }>(`/messages/conversation/${peerId}`),

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsArray, IsOptional, IsString, Matches } from 'class-validator';
+import { IsArray, IsEmail, IsOptional, IsString, Matches } from 'class-validator';
 
 /**
  * Telefone anotação: formato (DD) 99999-9999 — 11 dígitos.
@@ -15,6 +15,13 @@ export class UpdateContactDetailsDto {
     message: 'Telefone deve estar no formato (DD) 99999-9999',
   })
   telefone?: string;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  )
+  @IsEmail({}, { message: 'E-mail inválido' })
+  email?: string;
 
   @IsOptional()
   @IsString()

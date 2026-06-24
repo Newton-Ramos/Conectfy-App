@@ -14,6 +14,20 @@ function isLocalDatabaseUrl(url: string): boolean {
   );
 }
 
+/**
+ * Indica se a conexão aponta para um banco local. Usado para impedir que o
+ * `synchronize` do TypeORM rode contra um banco remoto/produção (ex.: Render),
+ * o que pode recriar enums/colunas e corromper dados reais.
+ */
+export function isLocalDatabase(get: DbEnvGetter): boolean {
+  const databaseUrl = trim(get('DATABASE_URL'));
+  if (databaseUrl) {
+    return isLocalDatabaseUrl(databaseUrl);
+  }
+  const host = trim(get('DB_HOST'));
+  return host === undefined || host === 'localhost' || host === '127.0.0.1';
+}
+
 export function readTypeOrmConnectionOptions(
   get: DbEnvGetter,
 ): Omit<PostgresConnectionOptions, 'entities' | 'migrations'> {

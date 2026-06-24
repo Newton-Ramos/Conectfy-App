@@ -95,6 +95,30 @@ export class MessagesService {
     return { success: true };
   }
 
+  /**
+   * Marca a conversa como "não lida" (estilo WhatsApp): reverte a última
+   * mensagem recebida do contato para DELIVERED, fazendo a bolinha reaparecer.
+   */
+  async markAsUnread(receiverId: number, senderId: number) {
+    const last = await this.messageRepository.findOne({
+      where: {
+        receiverId,
+        senderId,
+        deletedAt: IsNull(),
+      },
+      order: { createdAt: 'DESC' },
+    });
+    if (!last) return { success: true, changed: false };
+
+    await this.messageRepository
+      .createQueryBuilder()
+      .update(Message)
+      .set({ status: MessageStatus.DELIVERED, read_at: null })
+      .where('id = :id', { id: last.id })
+      .execute();
+    return { success: true, changed: true };
+  }
+
   /** Cliente (destinatário) confirma recebimento no aparelho → 2 checks cinza */
   async markDeliveredForReceiver(messageIds: number[], receiverUserId: number) {
     if (!messageIds.length) return { updated: 0 };

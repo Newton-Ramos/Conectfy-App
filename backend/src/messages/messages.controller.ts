@@ -111,6 +111,14 @@ export class MessagesController {
     return this.messagesService.markAsRead(req.user.userId, contactId);
   }
 
+  @Patch('unread/:contactId')
+  markAsUnread(
+    @Param('contactId', ParseIntPipe) contactId: number,
+    @NestRequestDecorator() req: AuthenticatedRequest,
+  ) {
+    return this.messagesService.markAsUnread(req.user.userId, contactId);
+  }
+
   @Delete('conversation/:peerId')
   deleteConversation(
     @Param('peerId', ParseIntPipe) peerId: number,
